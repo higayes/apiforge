@@ -55,8 +55,28 @@ export function parseKeyValuePairs(
   return out;
 }
 
+/**
+ * Parse `-H` / `--header` values.
+ *
+ * Both conventional spellings are accepted: curl's `Name: value` (what people
+ * copy from README examples and Postman) and the unambiguous `Name=value`.
+ * A header name can never contain `:`, but it can contain `=`, so the colon
+ * form is only used when no `=` appears before the first colon.
+ */
 export function parseHeaders(entries: string[] | undefined): Record<string, string> {
-  return parseKeyValuePairs(entries, '--header');
+  if (!entries || entries.length === 0) return {};
+  const normalized = entries.map((entry) => {
+    if (typeof entry !== 'string') return entry;
+    const colon = entry.indexOf(':');
+    if (colon <= 0) return entry; // no colon: leave for the NAME=value parser
+    const equals = entry.indexOf('=');
+    if (equals !== -1 && equals < colon) return entry; // `a=b:c` is NAME=value
+    const name = entry.slice(0, colon).trim();
+    const value = entry.slice(colon + 1).trim();
+    if (name === '') return entry;
+    return `${name}=${value}`;
+  });
+  return parseKeyValuePairs(normalized, '--header');
 }
 
 export function parseTimeout(

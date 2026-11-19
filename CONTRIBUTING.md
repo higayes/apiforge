@@ -71,7 +71,7 @@ That runs, in order:
 2. `eslint .` — lint, including `no-explicit-any` and type-only imports
 3. `tsc --noEmit` for the engine, the CLI **and the test sources**
 4. `pnpm build` — engine `tsc`, CLI `tsup` (the CLI tests run the bundle)
-5. `vitest run` — 317 tests
+5. `vitest run` — 321 tests
 6. `node scripts/smoke-test.mjs` — 53 end-to-end checks of the built CLI
 
 If a step fails, fix the cause rather than the check. Skipping, disabling or

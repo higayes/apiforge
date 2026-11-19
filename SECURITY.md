@@ -44,7 +44,7 @@ Anything that breaks one of these guarantees:
 - Findings produced _by_ the security engine about **your** target. Those are
   the product working as intended, not a vulnerability in APIFORGE.
 - Misconfiguration of a scanned host.
-- Running `apiforge load`/`performance` against a system you do not own.
+- Running `apiforge performance` against a system you do not own.
 - Issues that require an attacker to already control the machine or the
   `apiforge.yaml` in the working directory.
 
@@ -53,7 +53,9 @@ Anything that breaks one of these guarantees:
 Both engines are **defensive tools for authorized testing**:
 
 - Load tests are bounded by hard ceilings (`--concurrency` ≤ 100,
-  `--requests` ≤ 100 000) and refuse to run without a duration or request cap.
+  `--requests` ≤ 100 000). When you specify neither `-d` nor `-n`, the run uses
+  a bounded default of 10 seconds (and the default concurrency of 5) rather than
+  running open-ended — set `-n` for a hard request cap.
 - The security engine performs a **passive** review: it inspects the responses
   the server already returns. It does not attempt exploitation.
 - Only run them against systems you own or have **written permission** to test.

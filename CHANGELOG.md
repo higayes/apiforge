@@ -105,7 +105,7 @@ performance testing, security review, contract regression and reporting.
 - Runnable `examples/demo-api` project covering every engine, plus
   `scripts/demo-server.mjs`, `scripts/run-examples.mjs` and
   `scripts/smoke-test.mjs` (53 checks against the built CLI).
-- 309 automated tests: unit, integration against a local mock server, and CLI
+- Automated test suite: unit, integration against a local mock server, and CLI
   end-to-end tests that spawn the built binary.
 - CI workflow running `pnpm verify`, Dependabot for dependencies and Actions,
   and a security scanning workflow.

@@ -279,6 +279,40 @@ describe('run', () => {
     expect(result.code).toBe(1);
   });
 
+  it('accepts curl-style "Name: value" headers', async () => {
+    // The README documents this form; it must work verbatim.
+    const result = await runCli([
+      'run',
+      `${server.url}/echo`,
+      '-H',
+      'authorization: Bearer audit-token',
+      '--json',
+    ]);
+    expect(result.code).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      suites: Array<{ results: Array<{ response?: { bodyPreview: string } }> }>;
+    };
+    const body = payload.suites[0]?.results[0]?.response?.bodyPreview ?? '';
+    // The preview is truncated, so assert on the header name/key presence.
+    expect(body.toLowerCase()).toContain('authorization');
+  });
+
+  it('keeps colons inside a header value', async () => {
+    const result = await runCli([
+      'run',
+      `${server.url}/echo`,
+      '-H',
+      'x-origin: https://example.com:8443/path',
+      '--json',
+    ]);
+    expect(result.code).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      suites: Array<{ results: Array<{ response?: { bodyPreview: string } }> }>;
+    };
+    const body = payload.suites[0]?.results[0]?.response?.bodyPreview ?? '';
+    expect(body).toContain('https://example.com:8443/path');
+  });
+
   it('sends JSON bodies and headers', async () => {
     const result = await runCli([
       'run',
@@ -477,6 +511,25 @@ paths:
 });
 
 describe('report', () => {
+  it('re-renders a minimal report without a thresholds array', async () => {
+    // Regression: `thresholds` is optional, and a report without it crashed the
+    // terminal renderer with a raw TypeError.
+    const dir = await project({
+      'minimal.json': JSON.stringify({
+        kind: 'test',
+        tool: { name: 'apiforge', version: '0.1.0' },
+        title: 't',
+        generatedAt: new Date().toISOString(),
+        suites: [],
+        totals: { total: 0, passed: 0, failed: 0, errored: 0, skipped: 0, durationMs: 0 },
+        passed: false,
+      }),
+    });
+    const result = await runCli(['report', 'minimal.json', '-f', 'terminal'], { cwd: dir });
+    expect(result.stderr, result.stderr).not.toContain('Cannot read properties');
+    expect(result.stdout + result.stderr).toContain('Summary');
+  });
+
   it('re-renders a saved JSON report', async () => {
     const dir = await project({
       'green.suite.yaml': `name: R\nbaseUrl: ${server.url}\ntests:\n  - name: ok\n    path: /json\n    expect: { status: 200 }\n`,

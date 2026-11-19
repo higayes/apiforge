@@ -41,8 +41,10 @@ function statusBadge(palette: Palette, status: TestCaseResult['status']): string
   }
 }
 
-function renderThresholds(palette: Palette, thresholds: ThresholdResult[]): string[] {
-  if (thresholds.length === 0) return [];
+function renderThresholds(palette: Palette, thresholds: ThresholdResult[] | undefined): string[] {
+  // `thresholds` is optional on a report: a hand-written or older report may
+  // omit it, and re-rendering must not crash on that.
+  if (!thresholds || thresholds.length === 0) return [];
   const lines = [palette.bold('Thresholds')];
   for (const threshold of thresholds) {
     const symbol = threshold.passed ? palette.green('✓') : palette.red('✗');
