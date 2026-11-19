@@ -202,5 +202,14 @@ if (stale.length > 0) {
   for (const s of stale) console.error(`   ${s}`);
   process.exit(1);
 }
+// Rewritten lines can change wrapping, so normalise formatting the same way CI
+// checks it. Without this, `pnpm verify` fails at format:check after a rewrite.
+try {
+  execFileSync('npx', ['prettier', '--write', '.'], { stdio: 'ignore' });
+  console.log('✔ Formatting normalised (prettier --write).');
+} catch {
+  console.warn('⚠ Could not run prettier; run `pnpm format` before verifying.');
+}
+
 console.log('✔ No stale identity references remain.');
 console.log(`\nNext:\n  git remote add origin ${newRepoUrl}.git`);
