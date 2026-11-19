@@ -24,7 +24,7 @@ part you agree to uphold it. Report unacceptable behaviour to
 
 Requirements:
 
-- **Node.js 22.12 or newer** (`node --version`)
+- **Node.js 22.19 or newer** (`node --version`)
 - **pnpm 9** (`corepack enable && corepack prepare pnpm@9.15.4 --activate`)
 
 ```bash

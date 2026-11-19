@@ -42,7 +42,7 @@ apiforge report         # terminal / JSON / HTML / JUnit
 
 ## Quick start
 
-Requires **Node.js 22.12+**.
+Requires **Node.js 22.19+**.
 
 ```bash
 # run without installing

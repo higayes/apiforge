@@ -2,12 +2,12 @@
   "name": "apiforge-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "APIFORGE — Test smarter. Ship with confidence. Open-source API testing, validation, performance and security analysis platform.",
+  "description": "APIFORGE \u2014 Test smarter. Ship with confidence. Open-source API testing, validation, performance and security analysis platform.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.19.0"
   },
   "keywords": [
     "api-testing",

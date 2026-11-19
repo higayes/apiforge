@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.19.0"
   },
   "bin": {
     "apiforge": "./dist/cli.js"
@@ -36,7 +36,8 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm --filter apiforge run typecheck"
   },
   "dependencies": {
     "ajv": "^8.20.0",
@@ -47,7 +48,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "tsup": "^8.5.0",
-    "@apiforge/engine": "workspace:*"
+    "@apiforge/engine": "workspace:*",
+    "tsup": "^9.0.0"
   }
 }

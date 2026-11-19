@@ -42,7 +42,7 @@ apiforge report         # terminal / JSON / HTML / JUnit
 
 ## Quick start
 
-Requires **Node.js 22.12+**.
+Requires **Node.js 22.19+**.
 
 ```bash
 # run without installing
@@ -402,7 +402,7 @@ Test counts and coverage are printed by `pnpm test` and `pnpm test:coverage`.
 ```bash
 pnpm install
 pnpm build          # engine (tsc) + CLI (tsup) → packages/cli/dist/cli.js
-pnpm test           # 309 tests
+pnpm test           # 316 tests
 pnpm verify         # format, lint, typecheck, test, build, end-to-end smoke
 pnpm examples       # run every feature against the bundled demo API
 ```

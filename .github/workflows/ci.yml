@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         # The minimum supported version and the current LTS.
-        node: ['22.12.0', '22']
+        node: ['22.19.0', '22']
         os: [ubuntu-latest]
         include:
           # Cross-platform confidence: the CLI must behave the same everywhere.
