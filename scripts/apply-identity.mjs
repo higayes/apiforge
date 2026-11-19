@@ -130,6 +130,38 @@ for (const file of files) {
   }
 }
 
+// --- pnpm filters -------------------------------------------------------
+// `pnpm --filter <name>` stops matching once the package is renamed, which
+// silently breaks `pnpm build` (the CLI never builds). Filter by directory
+// instead — that stays correct no matter what the package is called.
+if (!args.dryRun) {
+  const filterTargets = [
+    ['package.json', ['build', 'typecheck', 'pack:check']],
+    ['.github/workflows/release.yml', null],
+  ];
+  for (const [file] of filterTargets) {
+    let text;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    const next = text
+      .split('pnpm --filter apiforge run build')
+      .join('pnpm --filter ./packages/cli run build')
+      .split('pnpm --filter apiforge run typecheck')
+      .join('pnpm --filter ./packages/cli run typecheck')
+      .split('pnpm --filter apiforge exec npm pack')
+      .join('pnpm --filter ./packages/cli exec npm pack')
+      .split('pnpm --filter apiforge publish')
+      .join('pnpm --filter ./packages/cli publish');
+    if (next !== text) {
+      writeFileSync(file, next, 'utf8');
+      console.log(`  updated  ${file} (pnpm filter → path)`);
+    }
+  }
+}
+
 // --- README install commands ------------------------------------------------
 // `npm install -g apiforge` must name the real package while the bin stays apiforge.
 if (!args.dryRun) {
