@@ -17,6 +17,9 @@ export const EXIT_CODE_DOCS: ReadonlyArray<{ code: number; meaning: string }> = 
   },
   { code: EXIT_USAGE, meaning: 'Invalid command-line usage' },
   { code: EXIT_CONFIG, meaning: 'Configuration, suite, environment or input-file error' },
-  { code: EXIT_NETWORK, meaning: 'Unrecoverable network/setup failure (e.g. unreachable target)' },
+  {
+    code: EXIT_NETWORK,
+    meaning: 'Network failure — the target could not be reached (DNS, connection refused, TLS)',
+  },
   { code: EXIT_INTERRUPTED, meaning: 'Interrupted (Ctrl+C)' },
 ];

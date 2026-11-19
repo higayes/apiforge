@@ -329,14 +329,17 @@ a silently empty string.
 
 Exit codes are part of the CLI contract:
 
-| Code  | Meaning                                                            |
-| ----- | ------------------------------------------------------------------ |
-| `0`   | all checks passed                                                  |
-| `1`   | tests, thresholds, performance, security or contract checks failed |
-| `2`   | invalid command-line usage                                         |
-| `3`   | configuration, suite, environment or input-file error              |
-| `4`   | unrecoverable network failure (target unreachable)                 |
-| `130` | interrupted (Ctrl+C)                                               |
+| Code  | Meaning                                                               |
+| ----- | --------------------------------------------------------------------- |
+| `0`   | all checks passed                                                     |
+| `1`   | tests, thresholds, performance, security or contract checks failed    |
+| `2`   | invalid command-line usage                                            |
+| `3`   | configuration, suite, environment or input-file error                 |
+| `4`   | network failure — the target could not be reached (DNS, refused, TLS) |
+| `130` | interrupted (Ctrl+C)                                                  |
+
+A **timeout** exits `1`, not `4`: the server answered, just too slowly. Exit `4`
+means nothing could be reached at all, which is usually retryable in CI.
 
 ```yaml
 # .github/workflows/api.yml
@@ -402,7 +405,7 @@ Test counts and coverage are printed by `pnpm test` and `pnpm test:coverage`.
 ```bash
 pnpm install
 pnpm build          # engine (tsc) + CLI (tsup) → packages/cli/dist/cli.js
-pnpm test           # 316 tests
+pnpm test           # 317 tests
 pnpm verify         # format, lint, typecheck, test, build, end-to-end smoke
 pnpm examples       # run every feature against the bundled demo API
 ```

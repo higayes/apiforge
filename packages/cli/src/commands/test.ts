@@ -255,7 +255,7 @@ export function registerTestCommand(program: Command): void {
               allResults.every(
                 (result) =>
                   result.status !== 'error' ||
-                  /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo|timed out|timeout/i.test(
+                  /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo/i.test(
                     result.error ?? '',
                   ),
               );

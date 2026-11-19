@@ -605,6 +605,20 @@ describe('global behaviour', () => {
     expect(result.code).toBe(1);
   });
 
+  it('accepts --no-color on every command', async () => {
+    // Regression: meta commands rejected the flag the rest of the CLI accepts.
+    for (const args of [
+      ['exit-codes', '--no-color'],
+      ['version', '--no-color'],
+      ['completion', 'bash', '--no-color'],
+      ['env', '--no-color'],
+      ['validate', '--no-color'],
+    ]) {
+      const result = await runCli(args);
+      expect(result.code, `${args.join(' ')} → ${result.stderr}`).toBeLessThan(2);
+    }
+  });
+
   it('--no-color disables colour even on nested subcommands', async () => {
     // Regression: Commander's negated default used to cancel an explicit
     // `--no-color` declared on a child command, emitting ANSI into pipes.

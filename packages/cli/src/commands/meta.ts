@@ -34,13 +34,14 @@ export function registerExitCodesCommand(program: Command): void {
     .command('exit-codes')
     .description('Document the exit codes returned by APIFORGE commands')
     .option('--json', 'emit machine-readable output')
-    .action((options: { json?: boolean }) => {
+    .option('--no-color', 'disable coloured output')
+    .action((options: { json?: boolean; color?: boolean }) => {
       if (options.json) {
         process.stdout.write(`${JSON.stringify(EXIT_CODE_DOCS, null, 2)}\n`);
         process.exitCode = EXIT_SUCCESS;
         return;
       }
-      const ui = createUiFromCommand({});
+      const ui = createUiFromCommand(options);
       ui.section('Exit codes');
       for (const entry of EXIT_CODE_DOCS) {
         ui.line(`  ${String(entry.code).padStart(3)}  ${entry.meaning}`);
@@ -57,6 +58,7 @@ export function registerCompletionCommand(program: Command): void {
   program
     .command('completion [shell]')
     .description('Print a completion script for bash, zsh or fish')
+    .option('--no-color', 'disable coloured output (accepted for consistency)')
     .action((shell: string | undefined) => {
       const target = (shell ?? 'bash').toLowerCase();
       const commands = program.commands.map((command) => command.name()).join(' ');

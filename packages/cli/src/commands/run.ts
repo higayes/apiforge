@@ -162,7 +162,7 @@ export function registerRunCommand(program: Command): void {
             run.results.every(
               (result) =>
                 result.status !== 'error' ||
-                /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo|timed out|timeout/i.test(
+                /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo/i.test(
                   result.error ?? '',
                 ),
             );

@@ -71,7 +71,7 @@ That runs, in order:
 1. `prettier --check .` — formatting
 2. `eslint .` — lint, including `no-explicit-any` and type-only imports
 3. `tsc --noEmit` for the engine, the CLI **and the test sources**
-4. `vitest run` — 316 tests
+4. `vitest run` — 317 tests
 5. `pnpm build` — engine `tsc`, CLI `tsup`
 6. `node scripts/smoke-test.mjs` — 53 end-to-end checks of the built CLI
 
