@@ -15,10 +15,9 @@ export default defineConfig({
       exclude: ['packages/cli/src/cli.ts', 'packages/cli/src/**'],
       reporter: ['text-summary', 'lcov'],
       // Floors sit just under today's real numbers so a regression fails CI
-      // without blocking unrelated work on noise.
-      thresholds: process.env.APIFORGE_COVERAGE_GATE
-        ? { statements: 75, branches: 64, functions: 74, lines: 77 }
-        : undefined,
+      // without blocking unrelated work on noise. Vitest only enforces these
+      // when coverage is enabled, so `pnpm test` stays fast.
+      thresholds: { statements: 75, branches: 64, functions: 74, lines: 77 },
     },
   },
 });
