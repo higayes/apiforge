@@ -12,7 +12,13 @@ import {
   type SuiteRun,
   type TestCaseResult,
 } from '@apiforge/engine';
-import { EXIT_CHECKS_FAILED, EXIT_CONFIG, EXIT_INTERRUPTED, EXIT_SUCCESS } from '../exit-codes.js';
+import {
+  EXIT_CHECKS_FAILED,
+  EXIT_CONFIG,
+  EXIT_INTERRUPTED,
+  EXIT_NETWORK,
+  EXIT_SUCCESS,
+} from '../exit-codes.js';
 import { createUiFromCommand } from '../lib/context.js';
 import { openProject } from '../lib/project.js';
 import {
@@ -236,8 +242,24 @@ export function registerTestCommand(program: Command): void {
             process.exitCode = EXIT_CHECKS_FAILED;
           } else if (cancellation.interrupted) {
             process.exitCode = EXIT_INTERRUPTED;
+          } else if (report.passed) {
+            process.exitCode = EXIT_SUCCESS;
           } else {
-            process.exitCode = report.passed ? EXIT_SUCCESS : EXIT_CHECKS_FAILED;
+            // Mirrors `apiforge run`: when the target could not be reached at all,
+            // that is a network failure (4) which CI can retry, not a failed
+            // assertion (1). A single real assertion failure keeps exit 1.
+            const allResults = report.suites.flatMap((entry) => entry.results);
+            const onlyNetworkErrors =
+              report.totals.failed === 0 &&
+              report.totals.errored > 0 &&
+              allResults.every(
+                (result) =>
+                  result.status !== 'error' ||
+                  /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo|timed out|timeout/i.test(
+                    result.error ?? '',
+                  ),
+              );
+            process.exitCode = onlyNetworkErrors ? EXIT_NETWORK : EXIT_CHECKS_FAILED;
           }
         } finally {
           cancellation.dispose();

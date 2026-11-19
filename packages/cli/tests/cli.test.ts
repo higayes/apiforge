@@ -587,6 +587,24 @@ describe('global behaviour', () => {
     expect(result.stderr).toContain('Missing required argument');
   });
 
+  it('exits 4 when every test fails for a network reason', async () => {
+    // Regression: a suite pointing at an unreachable host exited 1, which CI
+    // cannot distinguish from a real assertion failure.
+    const dir = await project({
+      'dead.suite.yaml': `name: Dead\nbaseUrl: http://127.0.0.1:1\ntests:\n  - name: unreachable\n    path: /x\n    timeoutMs: 300\n`,
+    });
+    const result = await runCli(['test', 'dead.suite.yaml'], { cwd: dir });
+    expect(result.code).toBe(4);
+  });
+
+  it('exits 1 when assertions fail against a reachable server', async () => {
+    const dir = await project({
+      'wrong.suite.yaml': `name: Wrong\nbaseUrl: ${server.url}\ntests:\n  - name: wrong status\n    path: /json\n    expect: { status: 500 }\n`,
+    });
+    const result = await runCli(['test', 'wrong.suite.yaml'], { cwd: dir });
+    expect(result.code).toBe(1);
+  });
+
   it('--no-color disables colour even on nested subcommands', async () => {
     // Regression: Commander's negated default used to cancel an explicit
     // `--no-color` declared on a child command, emitting ANSI into pipes.

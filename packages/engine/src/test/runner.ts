@@ -313,6 +313,14 @@ export async function runSuite(
     ...(options.suiteVariables ?? {}),
     ...(options.variables ?? {}),
   };
+  // `baseUrl` is templated, and `--var baseUrl=…` is the documented way to
+  // point a suite at another host without editing files, so CLI variables win
+  // over the suite, which wins over the environment.
+  const baseUrlOverride =
+    typeof variables.baseUrl === 'string' && variables.baseUrl.trim() !== ''
+      ? variables.baseUrl
+      : undefined;
+  const effectiveBaseUrl = baseUrlOverride ?? baseUrl;
   const secrets: Record<string, unknown> = {
     ...(environment?.secrets ?? {}),
     ...(suite.secrets ?? {}),
@@ -390,7 +398,7 @@ export async function runSuite(
       let request: RequestSummary = { method: test.method ?? 'GET', url: '—' };
       try {
         const rowCtx = ctx(rowVariables);
-        const url = resolveUrl(test, baseUrl, rowCtx, suite.name);
+        const url = resolveUrl(test, effectiveBaseUrl, rowCtx, suite.name);
         const headers: Record<string, string> = {
           ...(environment?.headers ?? {}),
           ...(suite.defaults?.headers ?? {}),

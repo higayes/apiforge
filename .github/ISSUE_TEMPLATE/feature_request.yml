@@ -1,0 +1,69 @@
+name: Feature request
+description: Propose a capability or a change in behaviour
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful proposals describe a **workflow**, not just a feature:
+        what are you trying to do, what do you do today, and where does it hurt?
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to accomplish? What happens today instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: |
+        What should APIFORGE do? If it is a CLI flag, a suite key or an output format,
+        sketch what it would look like.
+      placeholder: |
+        apiforge test --watch
+        # or
+        expect:
+          jsonPath:
+            items: { every: { matches: '^[a-z]+$' } }
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools or workarounds you use today, and why they fall short.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - functional testing
+        - performance testing
+        - security review
+        - contract testing
+        - reporting
+        - OpenAPI import
+        - CLI ergonomics
+        - documentation
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is not a request for active exploitation, fuzzing or unbounded load testing
+          required: true
+        - label: I would be willing to help implement or test this
+          required: false

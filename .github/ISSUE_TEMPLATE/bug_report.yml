@@ -1,0 +1,105 @@
+name: Bug report
+description: Something behaves differently from what is documented
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A minimal reproduction gets a fix much faster than a description alone.
+        **Do not include secrets, tokens or customer data.** Redact them; the maintainers will ask if more is needed.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The observed behaviour, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands, plus the smallest suite or config file that triggers it.
+      render: shell
+      placeholder: |
+        apiforge test suites/api.suite.yaml --env staging
+        # suite file:
+        # name: Repro
+        # tests:
+        #   - name: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Full terminal output. Add `--debug` for a stack trace if the message is unclear.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: APIFORGE version
+      description: Output of `apiforge --version`
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      description: Output of `node --version`
+      placeholder: v22.12.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows (native)
+        - Windows (WSL)
+        - Docker / container
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Which command is affected?
+      multiple: true
+      options:
+        - init
+        - test
+        - run
+        - performance
+        - security
+        - contract
+        - import
+        - report
+        - validate
+        - env
+        - installation / packaging
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Please confirm
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: This is not a security vulnerability (those go to maintainers@apiforge.dev)
+          required: true
+        - label: I removed secrets, tokens and personal data from the pasted output
+          required: true
