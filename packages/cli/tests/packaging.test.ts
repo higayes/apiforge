@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -117,6 +117,25 @@ describe('packaging', () => {
     expect(offenders, `workspace: ranges in dependencies: ${JSON.stringify(offenders)}`).toEqual(
       [],
     );
+  });
+
+  it('runs when invoked through a bin name that is not cli.js', async () => {
+    // Regression: the entry guard compared the *filename* to `cli.js`, so the
+    // CLI did nothing (exit 0, no output) whenever it was launched through the
+    // bin symlink — i.e. for every real install. The bundle is copied to a
+    // different name, exactly like `node_modules/.bin/apiforge`.
+    // Must live inside the package so the bundle's dependencies resolve.
+    const dir = await mkdtemp(join(cliDir, '.invocation-'));
+    try {
+      const renamed = join(dir, 'apiforge');
+      await copyFile(distFile, renamed);
+      // exec rejects on a non-zero exit, which is itself the assertion that
+      // the CLI ran instead of silently doing nothing.
+      const { stdout } = await exec(process.execPath, [renamed, '--version'], { cwd: cliDir });
+      expect(stdout.trim(), 'the CLI must still print its version').toMatch(/^\d+\.\d+\.\d+/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('points the bin entry at the built file', async () => {

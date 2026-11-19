@@ -6,6 +6,8 @@
  * All business logic lives in `@apiforge/engine` so a future web dashboard can
  * reuse it.
  */
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { closeHttpResources, toApiForgeError, UsageError } from '@apiforge/engine';
 import { CLI_VERSION } from './lib/version.js';
@@ -171,11 +173,24 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   }
 }
 
-// Execute only when invoked as a binary (not when imported by tests).
-const invokedDirectly =
-  process.argv[1] !== undefined &&
-  /(?:^|[\\/])cli(?:\.js|\.ts)?$/.test(process.argv[1].replace(/\.map$/, ''));
+/**
+ * Execute only when invoked as a binary, never when imported by tests.
+ *
+ * Comparing the realpaths is the only reliable test: package managers expose
+ * the binary as a symlink (`node_modules/.bin/apiforge`), so the invoked path
+ * is *not* `cli.js`. A filename check silently did nothing for every real
+ * install while still exiting 0.
+ */
+function isInvokedDirectly(): boolean {
+  const entry = process.argv[1];
+  if (entry === undefined) return false;
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
 
-if (invokedDirectly) {
+if (isInvokedDirectly()) {
   void main();
 }

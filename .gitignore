@@ -14,3 +14,4 @@ Thumbs.db
 .vscode/
 *.tsbuildinfo
 AUTONOMOUS_PROGRESS.md
+packages/cli/.invocation-*
