@@ -9,7 +9,28 @@ are always listed under **Changed**.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- `pnpm verify` ran the tests before the build even though the CLI tests execute
+  the built bundle, so a fresh clone failed all 54 CLI tests. The build now runs
+  first, and `pnpm test`, `pnpm smoke` and `pnpm examples` build first too.
+- The CLI test helper reports a missing bundle with an actionable message instead
+  of an opaque non-zero exit code.
+- The coverage gate used a POSIX-only inline environment variable, which broke on
+  Windows; the thresholds are now unconditional and only bind under
+  `pnpm test:coverage`.
+- A timeout now exits `1` rather than `4`. Exit `4` is reserved for targets that
+  cannot be reached at all.
+- `exit-codes` and `completion` accept `--no-color` like every other command.
+
+### Changed
+
+- Coverage no longer counts the CLI sources, which v8 cannot observe because the
+  tests run the bundle in a child process. The reported number is the measured
+  engine coverage: 80% statements, 82% lines, with enforced thresholds.
+- `clean` scripts and the coverage script work natively on Windows.
+- Toolchain: tsup 9 (clears the `esbuild` advisory — `pnpm audit` is clean) and
+  undici 8, which raises the minimum Node.js version to **22.19.0**.
 
 ## [0.1.0] — 2026-11-19
 
