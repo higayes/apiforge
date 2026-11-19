@@ -11,6 +11,11 @@ are always listed under **Changed**.
 
 ### Fixed
 
+- **The installed CLI did nothing.** The bundle only started when its own
+  filename was `cli.js`, but npm and pnpm expose the binary as a symlink
+  (`node_modules/.bin/apiforge`), so `apiforge --version` exited 0 with no
+  output for every real install. The guard now compares realpaths, and a
+  regression test invokes the bundle under a different name.
 - `pnpm verify` ran the tests before the build even though the CLI tests execute
   the built bundle, so a fresh clone failed all 54 CLI tests. The build now runs
   first, and `pnpm test`, `pnpm smoke` and `pnpm examples` build first too.
