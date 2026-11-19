@@ -146,10 +146,14 @@ export function renderSuite(palette: Palette, suite: SuiteRun, options: Terminal
   const failing = suite.results.filter((result) => result.status !== 'passed' && result.status !== 'skipped');
   const passing = suite.results.filter((result) => result.status === 'passed');
   for (const result of failing) lines.push(...renderTestResult(palette, result, options));
-  if (options.verbose || failing.length === 0) {
+  if (options.verbose) {
     for (const result of passing) lines.push(...renderTestResult(palette, result, options));
   } else if (passing.length > 0) {
-    lines.push(palette.gray(`  ✓ ${passing.length} test(s) passed (use --verbose to list them)`));
+    lines.push(palette.gray(`  ✓ ${passing.length} test(s) passed${failing.length > 0 ? ' (use --verbose to list them)' : ''}`));
+    for (const result of passing) {
+      const duration = palette.gray(`(${formatDuration(result.durationMs)})`);
+      lines.push(`  ${palette.green('✓')} ${result.name}${result.id ? palette.gray(` [${result.id}]`) : ''} ${duration}`);
+    }
   }
   const skipped = suite.results.filter((result) => result.status === 'skipped');
   if (options.verbose) {

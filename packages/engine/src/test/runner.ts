@@ -51,6 +51,11 @@ export interface RunnerOptions {
   onTestFinished?: (result: TestCaseResult, suite: SuiteDefinition) => void;
   /** Called before a test starts. */
   onTestStarting?: (test: TestDefinition, index: number, total: number) => void;
+  /**
+   * Called after each finished test; returning true stops the run after the
+   * current test (used by `--bail`). Results so far are kept.
+   */
+  shouldStop?: (result: TestCaseResult) => boolean;
 }
 
 export interface SuiteRunnerFailure {
@@ -274,8 +279,10 @@ export async function runSuite(
   }
 
   let runIndex = 0;
+  let stoppedEarly = false;
   for (const { test } of selectedTests) {
     runIndex += 1;
+    if (stoppedEarly) break;
     options.onTestStarting?.(test, runIndex, selectedTests.length);
 
     if (test.skip === true || typeof test.skip === 'string') {
@@ -291,6 +298,9 @@ export async function runSuite(
       };
       results.push(skipped);
       options.onTestFinished?.(skipped, suite);
+      if (options.shouldStop?.(skipped) === true) {
+        stoppedEarly = true;
+      }
       continue;
     }
 
@@ -390,6 +400,10 @@ export async function runSuite(
         };
         results.push(result);
         options.onTestFinished?.(result, suite);
+        if (options.shouldStop?.(result) === true) {
+          stoppedEarly = true;
+          break;
+        }
       } catch (error) {
         const message =
           error instanceof RequestError
@@ -412,6 +426,10 @@ export async function runSuite(
         results.push(result);
         options.onTestFinished?.(result, suite);
 
+        if (options.shouldStop?.(result) === true) {
+          stoppedEarly = true;
+          break;
+        }
         if (options.signal?.aborted) {
           break;
         }

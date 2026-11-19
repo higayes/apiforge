@@ -19,7 +19,11 @@ const httpMethod = z
   .transform((value) => value.toUpperCase());
 
 const headerValue = z.union([z.string(), z.number(), z.boolean()]).transform((value) => String(value));
-const headersSchema = z.record(z.string(), headerValue);
+/** `null` is accepted as "empty" because a YAML map with only comments parses as null. */
+const headersSchema = z.preprocess((value) => value ?? {}, z.record(z.string(), headerValue));
+const optionalRecord = (valueSchema: z.ZodType) =>
+  z.preprocess((value) => value ?? {}, z.record(z.string(), valueSchema));
+const variablesSchema = optionalRecord(z.unknown());
 
 const scalarString = z
   .union([z.string(), z.number(), z.boolean()])
@@ -305,8 +309,8 @@ export const suiteSchema = z
     name: z.string().min(1),
     description: z.string().optional(),
     baseUrl: z.string().optional(),
-    variables: z.record(z.string(), z.unknown()).optional(),
-    secrets: z.record(z.string(), z.unknown()).optional(),
+    variables: variablesSchema.optional(),
+    secrets: variablesSchema.optional(),
     defaults: requestDefaultsSchema.optional(),
     thresholds: z.array(thresholdDefinitionSchema).optional(),
     tests: z.array(testSchema).min(1, 'A suite needs at least one test'),
@@ -324,8 +328,8 @@ export const environmentSchema = z.strictObject({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   baseUrl: z.string().optional(),
-  variables: z.record(z.string(), z.unknown()).optional(),
-  secrets: z.record(z.string(), z.unknown()).optional(),
+  variables: variablesSchema.optional(),
+  secrets: variablesSchema.optional(),
   timeoutMs: durationMs.optional(),
   headers: headersSchema.optional(),
 });

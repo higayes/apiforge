@@ -81,6 +81,9 @@ export type {
   ExpectDefinition,
   ValueCheck,
   ThresholdDefinition,
+  BodyDefinition,
+  AuthDefinition,
+  HeaderCheck,
 } from './config/schema.js';
 
 /* Projects */
@@ -174,7 +177,17 @@ export type { Palette } from './report/color.js';
 export { renderTemplate, renderValue, resolveExpression, findPlaceholders } from './util/template.js';
 export type { TemplateContext, RenderOptions } from './util/template.js';
 export { getPath, setPath, hasPath, parsePath } from './util/path.js';
-export { redactUrl, redactHeaders, redactBodyText, redactUnknown, isSensitiveKey, REDACTED } from './util/redaction.js';
+export {
+  redactUrl,
+  redactHeaders,
+  redactBodyText,
+  redactUnknown,
+  redactKnownSecrets,
+  redactSecretsInUrl,
+  isSensitiveKey,
+  maskSecretPreservingShape,
+  REDACTED,
+} from './util/redaction.js';
 export { computeLatencyStats, percentile, round } from './util/stats.js';
 export { unifiedDiff, diffJson, formatValue } from './util/diff.js';
 export { createLogger, silentLogger } from './util/logger.js';

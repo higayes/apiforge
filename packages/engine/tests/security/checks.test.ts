@@ -140,9 +140,15 @@ describe('checkDisclosure', () => {
     expect(secret?.evidence).not.toContain('abcdefghijklmnopqrstuvwx');
   });
 
-  it('detects stack traces and SQL errors', () => {
-    const findings = checkDisclosure({}, 'Unhandled exception: SQLSyntaxErrorException near SELECT');
-    expect(findings.some((finding) => finding.id === 'disclosure.stack-trace')).toBe(true);
+  it('detects stack traces and SQL errors without leaking embedded credentials', () => {
+    const findings = checkDisclosure(
+      {},
+      'SQLSyntaxErrorException near SELECT {"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N"}',
+    );
+    const stack = findings.find((finding) => finding.id === 'disclosure.stack-trace');
+    expect(stack).toBeDefined();
+    expect(stack?.evidence).not.toContain('dozjgNryP4J3jVmNHl0w5N');
+    expect(stack?.evidence).toContain('[REDACTED]');
   });
 
   it('detects JWTs and AWS keys', () => {

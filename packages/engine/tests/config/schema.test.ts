@@ -121,6 +121,25 @@ tests:
   });
 });
 
+describe('null tolerance (YAML maps containing only comments)', () => {
+  it('treats null variables/secrets/headers as empty', () => {
+    const suite = parseSuiteDocument({
+      name: 'x',
+      variables: null,
+      secrets: null,
+      tests: [{ name: 't', path: '/x', headers: null }],
+    });
+    expect(suite.variables).toEqual({});
+    expect(suite.secrets).toEqual({});
+    expect(suite.tests[0]?.headers).toEqual({});
+  });
+
+  it('accepts environment files whose secrets map is empty', () => {
+    const env = parseEnvironmentFile('baseUrl: http://localhost\nsecrets:\n  # nothing yet\n');
+    expect(env.secrets).toEqual({});
+  });
+});
+
 describe('environment schema', () => {
   it('parses variables, secrets and baseUrl', () => {
     const env = parseEnvironmentFile('baseUrl: https://staging.example.com\nvariables:\n  a: 1\nsecrets:\n  token: abc');

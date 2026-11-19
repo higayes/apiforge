@@ -409,6 +409,19 @@ const DISCLOSURE_HEADERS: Array<{ name: string; severity: Severity; detail: stri
   { name: 'via', severity: 'info', detail: 'The Via header discloses intermediary proxies.' },
 ];
 
+/** Mask any credential-looking token inside free text used as evidence. */
+export function maskSecretsInText(text: string): string {
+  let out = text.replace(/\.\.\.[\s\S]*$/, '…');
+  out = out.replace(/\b(eyJ[A-Za-z0-9_-]{4})[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g, '$1.[REDACTED].[REDACTED]');
+  out = out.replace(/\b(AKIA)[0-9A-Z]{16}\b/g, '$1[REDACTED]');
+  out = out.replace(/\b(sk_(?:live|test)_)[A-Za-z0-9]{4,}/g, '$1[REDACTED]');
+  out = out.replace(/\b(gh[pousr]_)[A-Za-z0-9]{4,}/g, '$1[REDACTED]');
+  out = out.replace(/\b(xox[abposr]-)[A-Za-z0-9-]{4,}/g, '$1[REDACTED]');
+  out = out.replace(/\b(AIza)[0-9A-Za-z_-]{4,}/g, '$1[REDACTED]');
+  out = out.replace(/(=)[A-Za-z0-9%._-]{8,}/g, '$1[REDACTED]');
+  return out;
+}
+
 const SENSITIVE_BODY_PATTERNS: Array<{ id: string; pattern: RegExp; label: string; severity: Severity }> = [
   { id: 'stripe-key', pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}/, label: 'Stripe secret key', severity: 'critical' },
   { id: 'aws-access-key', pattern: /\bAKIA[0-9A-Z]{16}\b/, label: 'AWS access key id', severity: 'critical' },
@@ -461,6 +474,7 @@ export function checkDisclosure(
   const errorLeak = /(?:Error:|Exception in thread|Stack trace|at\s+[\w$.]+\s*\([^)]*:\d+:\d+\)|SQLSyntaxErrorException|ORA-\d{5}|psql: error)/i.exec(bodyText);
   if (errorLeak) {
     const snippetStart = Math.max(0, (errorLeak.index ?? 0) - 40);
+    const snippet = maskSecretsInText(bodyText.slice(snippetStart, snippetStart + 200));
     findings.push(
       finding({
         id: 'disclosure.stack-trace',
@@ -469,7 +483,7 @@ export function checkDisclosure(
         status: 'warn',
         severity: 'medium',
         description: 'Verbose error output can reveal internals (file paths, SQL, library versions) to attackers.',
-        evidence: `…${bodyText.slice(snippetStart, snippetStart + 200).replace(/\s+/g, ' ')}…`,
+        evidence: `…${snippet.replace(/\s+/g, ' ')}…`,
         remediation: 'Return generic error messages to clients and log technical details server-side with a correlation id.',
       }),
     );

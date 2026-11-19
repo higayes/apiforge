@@ -188,9 +188,9 @@ function evaluateOperator(
       const limit = Number(expected);
       const passed =
         operator === 'length' ? actual === limit : operator === 'minLength' ? actual >= limit : actual <= limit;
-      return passed
-        ? { passed: true }
-        : { passed: false, message: `expected length ${OPERATOR_LABELS[operator]} ${limit}, got ${actual}` };
+      const expectation =
+        operator === 'length' ? `length ${limit}` : operator === 'minLength' ? `length >= ${limit}` : `length <= ${limit}`;
+      return passed ? { passed: true } : { passed: false, message: `expected ${expectation}, got ${actual}` };
     }
 
     case 'in':
