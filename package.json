@@ -1,0 +1,46 @@
+{
+  "name": "apiforge-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "APIFORGE — Test smarter. Ship with confidence. Open-source API testing, validation, performance and security analysis platform.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "keywords": [
+    "api-testing",
+    "api",
+    "testing",
+    "load-testing",
+    "security",
+    "cli",
+    "openapi",
+    "performance"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @apiforge/engine run build && pnpm --filter apiforge run build",
+    "typecheck": "pnpm --filter @apiforge/engine run build && pnpm --filter @apiforge/engine run typecheck && pnpm --filter apiforge run typecheck && tsc -p tsconfig.tests.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && node scripts/smoke-test.mjs",
+    "examples": "node scripts/run-examples.mjs",
+    "pack:check": "pnpm --filter apiforge exec npm pack --dry-run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^5.1.1",
+    "eslint": "^10.15.0",
+    "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}
