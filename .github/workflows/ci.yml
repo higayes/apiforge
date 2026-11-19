@@ -54,15 +54,16 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Build
+        run: pnpm build
+
+      # The CLI tests execute the built bundle, so the build must come first.
       - name: Unit and integration tests
         run: pnpm test
 
       - name: Coverage
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: pnpm test:coverage
-
-      - name: Build
-        run: pnpm build
 
       - name: End-to-end smoke test
         run: node scripts/smoke-test.mjs

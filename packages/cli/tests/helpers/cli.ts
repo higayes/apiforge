@@ -3,6 +3,7 @@
  * real entry point, argument parsing, exit codes and output streams.
  */
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { mkdtemp, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,6 +25,15 @@ export interface CliRunOptions {
 }
 
 export function runCli(args: string[], options: CliRunOptions = {}): Promise<CliResult> {
+  // These tests drive the *built* bundle. Without it every assertion fails with
+  // an opaque exit code, so say exactly what is wrong and how to fix it.
+  if (!existsSync(CLI_ENTRY)) {
+    throw new Error(
+      `The CLI bundle is missing at ${CLI_ENTRY}.\n` +
+        'These tests run the built binary, so `pnpm build` must run first ' +
+        '(it is part of `pnpm verify`).',
+    );
+  }
   const timeoutMs = options.timeoutMs ?? 60_000;
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [CLI_ENTRY, ...args], {
