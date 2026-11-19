@@ -405,9 +405,10 @@ Test counts and coverage are printed by `pnpm test` and `pnpm test:coverage`.
 ```bash
 pnpm install
 pnpm build          # engine (tsc) + CLI (tsup) → packages/cli/dist/cli.js
+pnpm smoke          # 53 checks against the built CLI
 pnpm test           # 317 tests
 pnpm test:coverage  # engine coverage gate: 80% stmts / 82% lines
-pnpm verify         # format, lint, typecheck, test, build, end-to-end smoke
+pnpm verify         # format, lint, typecheck, build, test, end-to-end smoke
 pnpm examples       # run every feature against the bundled demo API
 ```
 
