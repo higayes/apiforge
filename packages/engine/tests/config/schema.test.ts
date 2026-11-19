@@ -17,7 +17,10 @@ function expectInvalid(fn: () => unknown, pattern: RegExp): void {
   try {
     fn();
   } catch (error) {
-    const text = error instanceof ValidationError ? `${error.message}\n${error.details.join('\n')}` : String(error);
+    const text =
+      error instanceof ValidationError
+        ? `${error.message}\n${error.details.join('\n')}`
+        : String(error);
     expect(text, `expected error text to match ${pattern}, got: ${text}`).toMatch(pattern);
     return;
   }
@@ -61,16 +64,36 @@ describe('suite schema', () => {
   });
 
   it('rejects unknown keys (typo protection)', () => {
-    expectInvalid(() => parseSuiteDocument({ ...minimal, tests: [{ name: 't', path: '/x', expct: {} }] }), /expct/);
+    expectInvalid(
+      () => parseSuiteDocument({ ...minimal, tests: [{ name: 't', path: '/x', expct: {} }] }),
+      /expct/,
+    );
   });
 
   it('rejects invalid methods', () => {
-    expectInvalid(() => parseSuiteDocument({ name: 'x', tests: [{ name: 't', path: '/x', method: 'GE T' }] }), /Invalid HTTP method/);
+    expectInvalid(
+      () => parseSuiteDocument({ name: 'x', tests: [{ name: 't', path: '/x', method: 'GE T' }] }),
+      /Invalid HTTP method/,
+    );
   });
 
   it('rejects invalid auth/body combinations', () => {
-    expectInvalid(() => parseSuiteDocument({ name: 'x', tests: [{ name: 't', path: '/x', auth: { type: 'bearer' } }] }), /token/);
-    expectInvalid(() => parseSuiteDocument({ name: 'x', tests: [{ name: 't', path: '/x', body: { json: 1, text: 'a' } }] }), /body/);
+    expectInvalid(
+      () =>
+        parseSuiteDocument({
+          name: 'x',
+          tests: [{ name: 't', path: '/x', auth: { type: 'bearer' } }],
+        }),
+      /token/,
+    );
+    expectInvalid(
+      () =>
+        parseSuiteDocument({
+          name: 'x',
+          tests: [{ name: 't', path: '/x', body: { json: 1, text: 'a' } }],
+        }),
+      /body/,
+    );
   });
 
   it('normalizes literal jsonPath checks while preserving operators', () => {
@@ -80,7 +103,14 @@ describe('suite schema', () => {
         {
           name: 't',
           path: '/x',
-          expect: { jsonPath: { id: 1, name: { equals: 'a' }, tags: { type: 'array' }, meta: { nested: { deep: true } } } },
+          expect: {
+            jsonPath: {
+              id: 1,
+              name: { equals: 'a' },
+              tags: { type: 'array' },
+              meta: { nested: { deep: true } },
+            },
+          },
         },
       ],
     });
@@ -142,7 +172,9 @@ describe('null tolerance (YAML maps containing only comments)', () => {
 
 describe('environment schema', () => {
   it('parses variables, secrets and baseUrl', () => {
-    const env = parseEnvironmentFile('baseUrl: https://staging.example.com\nvariables:\n  a: 1\nsecrets:\n  token: abc');
+    const env = parseEnvironmentFile(
+      'baseUrl: https://staging.example.com\nvariables:\n  a: 1\nsecrets:\n  token: abc',
+    );
     expect(env.baseUrl).toBe('https://staging.example.com');
     expect(env.variables).toEqual({ a: 1 });
     expect(env.secrets).toEqual({ token: 'abc' });
@@ -187,7 +219,9 @@ describe('performance/security/contract specs', () => {
   });
 
   it('caps concurrency at 100', () => {
-    expect(() => parsePerformanceDocument({ target: { url: 'https://x.dev' }, concurrency: 500 })).toThrow();
+    expect(() =>
+      parsePerformanceDocument({ target: { url: 'https://x.dev' }, concurrency: 500 }),
+    ).toThrow();
   });
 
   it('defaults the security threshold to high', () => {
@@ -203,7 +237,10 @@ describe('performance/security/contract specs', () => {
 describe('error messages', () => {
   it('include the field path and explanation', () => {
     try {
-      parseSuiteDocument({ name: 'x', tests: [{ name: 't', path: '/x', timeoutMs: -5 }] }, 'my.suite.yaml');
+      parseSuiteDocument(
+        { name: 'x', tests: [{ name: 't', path: '/x', timeoutMs: -5 }] },
+        'my.suite.yaml',
+      );
       expect.unreachable('should have thrown');
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);
@@ -211,5 +248,44 @@ describe('error messages', () => {
       expect(validation.message).toBe('Invalid my.suite.yaml');
       expect(validation.details.join('\n')).toContain('tests.0.timeoutMs');
     }
+  });
+});
+
+describe('templated operands', () => {
+  it('accepts {{placeholders}} in numeric and boolean assertion fields', () => {
+    // Data-driven suites pass expectations through data rows, so a limit may be
+    // a placeholder at parse time even though it is a number at run time.
+    expect(() =>
+      parseSuiteDocument({
+        name: 'templated',
+        tests: [
+          {
+            name: 't',
+            path: '/x',
+            expect: {
+              status: 200,
+              jsonPath: {
+                items: { type: 'array', length: '{{expected}}' },
+                count: { gte: '{{min}}', type: 'number' },
+              },
+              time: { lessThan: '{{budget}}' },
+              headers: { 'x-flag': { exists: '{{flag}}' } },
+            },
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it('still rejects nonsense in those fields', () => {
+    // The detail line names the field and explains the accepted forms.
+    expect(() =>
+      parseSuiteDocument({
+        name: 'bad',
+        tests: [
+          { name: 't', path: '/x', expect: { jsonPath: { a: { length: 'not a template' } } } },
+        ],
+      }),
+    ).toThrowError(/Invalid suite/);
   });
 });

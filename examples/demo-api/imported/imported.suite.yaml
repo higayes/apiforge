@@ -1,0 +1,142 @@
+name: Demo API - generated from OpenAPI
+description: APIFORGE demo API (imported from OpenAPI 3.1.0)
+baseUrl: http://127.0.0.1:4010
+tests:
+  - name: getHealth
+    description: Health probe
+    method: GET
+    path: /health
+    expect:
+      status: 200
+      body:
+        schema:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum:
+                - ok
+            uptimeSeconds:
+              type: number
+  - name: listUsers
+    description: List users
+    method: GET
+    path: /api/users
+    query:
+      page: '1'
+      limit: '10'
+    expect:
+      status: 200
+      body:
+        schema:
+          type: object
+          required:
+            - data
+            - meta
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                required:
+                  - id
+                  - name
+                  - role
+                  - active
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                    minLength: 1
+                  email:
+                    type: string
+                    format: email
+                  role:
+                    type: string
+                    enum:
+                      - admin
+                      - engineer
+                      - member
+                  active:
+                    type: boolean
+            meta:
+              type: object
+              required:
+                - page
+                - limit
+                - total
+              properties:
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                total:
+                  type: integer
+  - name: createUser
+    description: Create a user
+    method: POST
+    path: /api/users
+    body:
+      json:
+        name: string
+    expect:
+      status: 201
+      body:
+        schema:
+          type: object
+          required:
+            - id
+            - name
+            - role
+            - active
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+              minLength: 1
+            email:
+              type: string
+              format: email
+            role:
+              type: string
+              enum:
+                - admin
+                - engineer
+                - member
+            active:
+              type: boolean
+  - name: getUser
+    description: Fetch one user
+    method: GET
+    path: /api/users/1
+    expect:
+      status: 200
+      body:
+        schema:
+          type: object
+          required:
+            - id
+            - name
+            - role
+            - active
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+              minLength: 1
+            email:
+              type: string
+              format: email
+            role:
+              type: string
+              enum:
+                - admin
+                - engineer
+                - member
+            active:
+              type: boolean

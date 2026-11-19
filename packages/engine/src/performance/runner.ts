@@ -144,8 +144,13 @@ async function warmup(options: PerformanceRunOptions, dispatcher: Dispatcher): P
  * throws for request-level failures (they are measured and reported).
  */
 export async function runPerformance(options: PerformanceRunOptions): Promise<PerformanceReport> {
-  const concurrency = clamp(Math.floor(options.concurrency ?? DEFAULT_CONCURRENCY), 1, MAX_CONCURRENCY);
-  const deadline = options.durationSeconds ?? (options.maxRequests ? undefined : DEFAULT_DURATION_SECONDS);
+  const concurrency = clamp(
+    Math.floor(options.concurrency ?? DEFAULT_CONCURRENCY),
+    1,
+    MAX_CONCURRENCY,
+  );
+  const deadline =
+    options.durationSeconds ?? (options.maxRequests ? undefined : DEFAULT_DURATION_SECONDS);
   const hardMax = options.hardMaxRequests ?? 1_000_000;
   const limit = Math.min(options.maxRequests ?? hardMax, hardMax);
   const timeoutMs = options.timeoutMs ?? 10_000;

@@ -1,5 +1,11 @@
-import { Command } from 'commander';
-import { loadEnvironments, parseDocument, parseEnvironmentDocument, maskSecretPreservingShape, ConfigError } from '@apiforge/engine';
+import type { Command as CommandType } from 'commander';
+import {
+  loadEnvironments,
+  parseDocument,
+  parseEnvironmentDocument,
+  maskSecretPreservingShape,
+  ConfigError,
+} from '@apiforge/engine';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { EXIT_CONFIG, EXIT_SUCCESS } from '../exit-codes.js';
@@ -22,8 +28,10 @@ interface EnvCommandOptions {
  * explicit `--no-color`. We therefore declare it once per leaf command and read
  * `argv` (see `createUiFromCommand`) instead of relying on parent options.
  */
-export function registerEnvCommand(program: Command): void {
-  const env = program.command('env').description('List and inspect environments (secrets are always masked)');
+export function registerEnvCommand(program: CommandType): void {
+  const env = program
+    .command('env')
+    .description('List and inspect environments (secrets are always masked)');
 
   env
     .command('list')
@@ -80,7 +88,8 @@ export function registerEnvCommand(program: Command): void {
     .action(async (name: string, options: EnvCommandOptions) => {
       const ui = createUiFromCommand(options);
       const project = await detectProject(process.cwd());
-      if (!project) throw new ConfigError('No APIFORGE project found in this directory or its parents');
+      if (!project)
+        throw new ConfigError('No APIFORGE project found in this directory or its parents');
 
       const environments = await loadEnvironments(project.root, {});
       const entry = environments.get(name);
@@ -119,7 +128,9 @@ export function registerEnvCommand(program: Command): void {
 
       ui.section(`Environment: ${entry.name}`);
       ui.line(`  ${ui.palette.gray('file')}      ${entry.file}`);
-      ui.line(`  ${ui.palette.gray('baseUrl')}   ${entry.environment.baseUrl ?? '(inherited from suites)'}`);
+      ui.line(
+        `  ${ui.palette.gray('baseUrl')}   ${entry.environment.baseUrl ?? '(inherited from suites)'}`,
+      );
       const variables = entry.environment.variables ?? {};
       if (Object.keys(variables).length > 0) {
         ui.line(`  ${ui.palette.gray('variables')}`);
@@ -149,11 +160,15 @@ export function registerEnvCommand(program: Command): void {
       try {
         content = await readFile(absolute, 'utf8');
       } catch (error) {
-        throw new ConfigError(`Could not read environment file: ${file}`, [String((error as Error).message)]);
+        throw new ConfigError(`Could not read environment file: ${file}`, [
+          String((error as Error).message),
+        ]);
       }
       const environment = parseEnvironmentDocument(parseDocument(content, file), file);
       if (options.json) {
-        process.stdout.write(`${JSON.stringify({ ok: true, file, baseUrl: environment.baseUrl ?? null }, null, 2)}\n`);
+        process.stdout.write(
+          `${JSON.stringify({ ok: true, file, baseUrl: environment.baseUrl ?? null }, null, 2)}\n`,
+        );
       } else {
         ui.success(`Environment file is valid: ${file}`);
       }
@@ -169,8 +184,10 @@ export function registerEnvCommand(program: Command): void {
     .action(() => {
       const known = new Set(['--json', '--no-color', '-q', '--quiet']);
       const forwarded = process.argv.filter((argument) => known.has(argument));
-      env.commands.find((command) => command.name() === 'list')?.parse(['node', 'apiforge-env-list', ...forwarded], {
-        from: 'node',
-      });
+      env.commands
+        .find((command) => command.name() === 'list')
+        ?.parse(['node', 'apiforge-env-list', ...forwarded], {
+          from: 'node',
+        });
     });
 }

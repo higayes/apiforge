@@ -20,7 +20,9 @@ function wrap(enabled: boolean, open: number, close: number, text: string): stri
   return enabled ? `\u001B[${open}m${text}\u001B[${close}m` : text;
 }
 
-export function detectColorSupport(stream: { isTTY?: boolean } | undefined = process.stdout): boolean {
+export function detectColorSupport(
+  stream: { isTTY?: boolean } | undefined = process.stdout,
+): boolean {
   const env = process.env;
   if (env.NO_COLOR !== undefined && env.NO_COLOR !== '') return false;
   if (env.FORCE_COLOR === '0') return false;

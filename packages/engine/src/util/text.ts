@@ -84,5 +84,8 @@ export function toSlug(text: string): string {
 
 /** Filesystem-safe timestamp like 2026-11-19T10-30-00Z. */
 export function fileTimestamp(date = new Date()): string {
-  return date.toISOString().replace(/:/g, '-').replace(/\.\d+Z$/, 'Z');
+  return date
+    .toISOString()
+    .replace(/:/g, '-')
+    .replace(/\.\d+Z$/, 'Z');
 }

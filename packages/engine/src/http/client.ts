@@ -69,7 +69,10 @@ function buildUrl(base: string, query?: HttpRequestOptions['query']): URL {
     throw new RequestError('protocol', `Invalid URL: ${base}`);
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new RequestError('protocol', `Unsupported protocol "${url.protocol}" (only http and https are allowed)`);
+    throw new RequestError(
+      'protocol',
+      `Unsupported protocol "${url.protocol}" (only http and https are allowed)`,
+    );
   }
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -139,12 +142,15 @@ export function prepareBody(body: BodyDefinition | undefined): PreparedBody {
     // content type, which is the safest default for text-only fields.
     return { body: encodeForm(body.form), contentType: 'application/x-www-form-urlencoded' };
   }
-  if ('urlencoded' in body) return { body: encodeForm(body.urlencoded), contentType: 'application/x-www-form-urlencoded' };
+  if ('urlencoded' in body)
+    return { body: encodeForm(body.urlencoded), contentType: 'application/x-www-form-urlencoded' };
   // `file` bodies are materialized by the engine layer (it has filesystem access).
   return { body: undefined };
 }
 
-function headerPairsToRecord(pairs: string[] | Record<string, string | string[]>): Record<string, string> {
+function headerPairsToRecord(
+  pairs: string[] | Record<string, string | string[]>,
+): Record<string, string> {
   const out: Record<string, string> = {};
   if (Array.isArray(pairs)) {
     for (let i = 0; i + 1 < pairs.length; i += 2) {
@@ -167,7 +173,10 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 function isAbort(error: unknown): boolean {
   return (
     (error instanceof Error && (error.name === 'AbortError' || error.name === 'AbortError')) ||
-    (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'ABORT_ERR')
+    (typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'ABORT_ERR')
   );
 }
 
@@ -231,7 +240,10 @@ function decodeContentEncoding(buffer: Buffer, encodingHeader: string | undefine
   return buffer;
 }
 
-async function readBody(response: Dispatcher.ResponseData, maxBytes: number): Promise<{ text: string; truncated: boolean; bytes: number }> {
+async function readBody(
+  response: Dispatcher.ResponseData,
+  maxBytes: number,
+): Promise<{ text: string; truncated: boolean; bytes: number }> {
   if (response.body === null) return { text: '', truncated: false, bytes: 0 };
   const chunks: Buffer[] = [];
   let bytes = 0;
@@ -250,8 +262,13 @@ async function readBody(response: Dispatcher.ResponseData, maxBytes: number): Pr
       bytes += buffer.byteLength;
     }
   } catch (error) {
-    if (isAbort(error)) throw new RequestError('cancelled', 'Request cancelled while reading the response body');
-    throw new RequestError('network', `Failed while reading the response body: ${(error as Error).message}`, error);
+    if (isAbort(error))
+      throw new RequestError('cancelled', 'Request cancelled while reading the response body');
+    throw new RequestError(
+      'network',
+      `Failed while reading the response body: ${(error as Error).message}`,
+      error,
+    );
   }
   if (truncated) {
     // Drain the remaining stream so the connection can be reused safely.
@@ -265,7 +282,10 @@ async function readBody(response: Dispatcher.ResponseData, maxBytes: number): Pr
   const encodingHeader = response.headers['content-encoding'];
   const decoded = truncated
     ? raw
-    : decodeContentEncoding(raw, Array.isArray(encodingHeader) ? encodingHeader[0] : encodingHeader);
+    : decodeContentEncoding(
+        raw,
+        Array.isArray(encodingHeader) ? encodingHeader[0] : encodingHeader,
+      );
   return { text: decoded.toString('utf8'), truncated, bytes: raw.byteLength };
 }
 
@@ -307,7 +327,10 @@ async function performAttempt(
   for (let hop = 0; ; hop += 1) {
     if (options.signal?.aborted) throw new RequestError('cancelled', 'Request cancelled');
 
-    const prepared = currentMethod === 'GET' || currentMethod === 'HEAD' ? { body: undefined } : prepareBody(payload);
+    const prepared =
+      currentMethod === 'GET' || currentMethod === 'HEAD'
+        ? { body: undefined }
+        : prepareBody(payload);
     const outboundHeaders = { ...attemptHeaders };
     if (prepared.contentType && !hasHeader(outboundHeaders, 'content-type')) {
       outboundHeaders['content-type'] = prepared.contentType;
@@ -336,7 +359,9 @@ async function performAttempt(
       const statusCode = response.statusCode;
       const isRedirect =
         followRedirects && statusCode >= 300 && statusCode < 400 && typeof location === 'string';
-      const bodyResult = isRedirect ? { text: '', truncated: false, bytes: 0 } : await readBody(response, maxBodyBytes);
+      const bodyResult = isRedirect
+        ? { text: '', truncated: false, bytes: 0 }
+        : await readBody(response, maxBodyBytes);
       clearTimeout(timer);
 
       if (isRedirect) {
@@ -350,12 +375,16 @@ async function performAttempt(
           );
         }
         currentUrl = new URL(String(location), currentUrl);
-        if (statusCode === 303 || ((statusCode === 301 || statusCode === 302) && currentMethod === 'POST')) {
+        if (
+          statusCode === 303 ||
+          ((statusCode === 301 || statusCode === 302) && currentMethod === 'POST')
+        ) {
           currentMethod = 'GET';
           payload = undefined;
           const rest = { ...attemptHeaders };
           for (const key of Object.keys(rest)) {
-            if (['content-type', 'content-length', 'transfer-encoding'].includes(key.toLowerCase())) delete rest[key];
+            if (['content-type', 'content-length', 'transfer-encoding'].includes(key.toLowerCase()))
+              delete rest[key];
           }
           attemptHeaders = rest;
         }
@@ -390,7 +419,8 @@ async function performAttempt(
         throw new RequestError('timeout', `Request timed out after ${timeoutMs}ms`);
       }
       const cause = (error as { cause?: unknown }).cause;
-      const code = (error as { code?: string }).code ?? (cause as { code?: string } | undefined)?.code;
+      const code =
+        (error as { code?: string }).code ?? (cause as { code?: string } | undefined)?.code;
       const detail = cause instanceof Error ? cause.message : (error as Error).message;
       throw new RequestError(
         'network',
@@ -415,7 +445,8 @@ export async function executeRequest(options: HttpRequestOptions): Promise<HttpR
   if (options.cookies && Object.keys(options.cookies).length > 0 && !hasHeader(headers, 'cookie')) {
     headers.cookie = serializeCookies(options.cookies);
   }
-  if (!hasHeader(headers, 'user-agent')) headers['user-agent'] = 'apiforge/0.1 (+https://github.com/apiforge/apiforge)';
+  if (!hasHeader(headers, 'user-agent'))
+    headers['user-agent'] = 'apiforge/0.1 (+https://github.com/apiforge/apiforge)';
 
   const dispatcher = options.dispatcher ?? getAgent(options.insecureTLS === true);
   const retries = Math.max(0, options.retries ?? 0);
@@ -445,10 +476,18 @@ export async function executeRequest(options: HttpRequestOptions): Promise<HttpR
 }
 
 /** Redacted view of the outbound request, safe for reports. */
-export function summarizeOutboundRequest(method: string, url: string, headers: Record<string, string> | undefined): {
+export function summarizeOutboundRequest(
+  method: string,
+  url: string,
+  headers: Record<string, string> | undefined,
+): {
   method: string;
   url: string;
   headers: Record<string, string>;
 } {
-  return { method: method.toUpperCase(), url: redactUrl(url), headers: redactHeaders(headers ?? {}) };
+  return {
+    method: method.toUpperCase(),
+    url: redactUrl(url),
+    headers: redactHeaders(headers ?? {}),
+  };
 }

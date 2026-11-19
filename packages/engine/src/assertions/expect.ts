@@ -16,7 +16,10 @@ export interface AssertionContextData {
   text: string;
 }
 
-function headerValue(headers: Record<string, string>, name: string): { found: boolean; value: string | undefined } {
+function headerValue(
+  headers: Record<string, string>,
+  name: string,
+): { found: boolean; value: string | undefined } {
   const normalized = name.toLowerCase();
   for (const [key, value] of Object.entries(headers)) {
     if (key.toLowerCase() === normalized) return { found: true, value };
@@ -36,7 +39,10 @@ function statusAssertions(
         passed: status === expectation,
         expected: expectation,
         actual: status,
-        message: status === expectation ? undefined : `expected HTTP ${expectation}, received HTTP ${status}`,
+        message:
+          status === expectation
+            ? undefined
+            : `expected HTTP ${expectation}, received HTTP ${status}`,
       },
     ];
   }
@@ -49,7 +55,9 @@ function statusAssertions(
         passed,
         expected: expectation,
         actual: status,
-        message: passed ? undefined : `expected HTTP status in [${expectation.join(', ')}], received HTTP ${status}`,
+        message: passed
+          ? undefined
+          : `expected HTTP status in [${expectation.join(', ')}], received HTTP ${status}`,
       },
     ];
   }
@@ -62,7 +70,9 @@ function statusAssertions(
         passed,
         expected: expectation.in,
         actual: status,
-        message: passed ? undefined : `expected HTTP status in [${expectation.in.join(', ')}], received HTTP ${status}`,
+        message: passed
+          ? undefined
+          : `expected HTTP status in [${expectation.in.join(', ')}], received HTTP ${status}`,
       },
     ];
   }
@@ -74,7 +84,9 @@ function statusAssertions(
       passed,
       expected: [expectation.min, expectation.max],
       actual: status,
-      message: passed ? undefined : `expected HTTP status between ${expectation.min} and ${expectation.max}, received HTTP ${status}`,
+      message: passed
+        ? undefined
+        : `expected HTTP status between ${expectation.min} and ${expectation.max}, received HTTP ${status}`,
     },
   ];
 }
@@ -97,7 +109,12 @@ function evaluateHeaderCheck(
         expression: `${label} ${wantExists ? 'exists' : 'is absent'}`,
         passed: found === wantExists,
         actual: found ? value : undefined,
-        message: found === wantExists ? undefined : wantExists ? `expected header "${name}" to be present` : `expected header "${name}" to be absent`,
+        message:
+          found === wantExists
+            ? undefined
+            : wantExists
+              ? `expected header "${name}" to be present`
+              : `expected header "${name}" to be absent`,
       });
       continue;
     }
@@ -117,24 +134,34 @@ function evaluateHeaderCheck(
     switch (operator) {
       case 'equals':
         passed = actual === expected;
-        message = passed ? undefined : `expected header "${name}" to equal ${formatValue(expected)}, got ${formatValue(actual)}`;
+        message = passed
+          ? undefined
+          : `expected header "${name}" to equal ${formatValue(expected)}, got ${formatValue(actual)}`;
         break;
       case 'notEquals':
         passed = actual !== expected;
-        message = passed ? undefined : `expected header "${name}" to differ from ${formatValue(expected)}`;
+        message = passed
+          ? undefined
+          : `expected header "${name}" to differ from ${formatValue(expected)}`;
         break;
       case 'contains':
         passed = actual.includes(String(expected));
-        message = passed ? undefined : `expected header "${name}" to contain ${formatValue(expected)}, got ${formatValue(actual)}`;
+        message = passed
+          ? undefined
+          : `expected header "${name}" to contain ${formatValue(expected)}, got ${formatValue(actual)}`;
         break;
       case 'notContains':
         passed = !actual.includes(String(expected));
-        message = passed ? undefined : `expected header "${name}" not to contain ${formatValue(expected)}`;
+        message = passed
+          ? undefined
+          : `expected header "${name}" not to contain ${formatValue(expected)}`;
         break;
       case 'matches': {
         try {
           passed = new RegExp(String(expected), 'u').test(actual);
-          message = passed ? undefined : `expected header "${name}" to match /${String(expected)}/, got ${formatValue(actual)}`;
+          message = passed
+            ? undefined
+            : `expected header "${name}" to match /${String(expected)}/, got ${formatValue(actual)}`;
         } catch (error) {
           message = `invalid regular expression: ${(error as Error).message}`;
         }
@@ -142,12 +169,21 @@ function evaluateHeaderCheck(
       }
       case 'in':
         passed = Array.isArray(expected) && (expected as string[]).includes(actual);
-        message = passed ? undefined : `expected header "${name}" to be one of ${formatValue(expected)}, got ${formatValue(actual)}`;
+        message = passed
+          ? undefined
+          : `expected header "${name}" to be one of ${formatValue(expected)}, got ${formatValue(actual)}`;
         break;
       default:
         message = `unsupported header operator "${String(operator)}"`;
     }
-    results.push({ target: label, expression: `${label} ${operator} ${formatValue(expected)}`, passed, expected, actual, message });
+    results.push({
+      target: label,
+      expression: `${label} ${operator} ${formatValue(expected)}`,
+      passed,
+      expected,
+      actual,
+      message,
+    });
   }
 
   if (results.length === 0) {
@@ -161,7 +197,10 @@ function evaluateHeaderCheck(
   return results;
 }
 
-function bodyAssertions(body: NonNullable<ExpectDefinition['body']>, ctx: AssertionContextData): AssertionResult[] {
+function bodyAssertions(
+  body: NonNullable<ExpectDefinition['body']>,
+  ctx: AssertionContextData,
+): AssertionResult[] {
   const results: AssertionResult[] = [];
   const text = ctx.text;
 
@@ -235,7 +274,13 @@ function bodyAssertions(body: NonNullable<ExpectDefinition['body']>, ctx: Assert
     } catch (error) {
       message = `invalid regular expression: ${(error as Error).message}`;
     }
-    results.push({ target: 'body', expression: `body matches /${body.matches}/`, passed, expected: body.matches, message });
+    results.push({
+      target: 'body',
+      expression: `body matches /${body.matches}/`,
+      passed,
+      expected: body.matches,
+      message,
+    });
   }
 
   if (body.schema !== undefined) {
@@ -245,10 +290,17 @@ function bodyAssertions(body: NonNullable<ExpectDefinition['body']>, ctx: Assert
         target: 'body',
         expression: 'body matches JSON Schema',
         passed: validation.valid,
-        message: validation.valid ? undefined : `schema validation failed:\n${validation.errors.map((entry) => `  • ${entry}`).join('\n')}`,
+        message: validation.valid
+          ? undefined
+          : `schema validation failed:\n${validation.errors.map((entry) => `  • ${entry}`).join('\n')}`,
       });
     } catch (error) {
-      results.push({ target: 'body', expression: 'body matches JSON Schema', passed: false, message: (error as Error).message });
+      results.push({
+        target: 'body',
+        expression: 'body matches JSON Schema',
+        passed: false,
+        message: (error as Error).message,
+      });
     }
   }
 
@@ -259,11 +311,15 @@ function bodyAssertions(body: NonNullable<ExpectDefinition['body']>, ctx: Assert
  * Evaluate an `expect` block against a response.
  * An empty/omitted expect block produces no assertions (the request still ran).
  */
-export function evaluateExpect(expect: ExpectDefinition | undefined, ctx: AssertionContextData): AssertionResult[] {
+export function evaluateExpect(
+  expect: ExpectDefinition | undefined,
+  ctx: AssertionContextData,
+): AssertionResult[] {
   if (!expect) return [];
   const results: AssertionResult[] = [];
 
-  if (expect.status !== undefined) results.push(...statusAssertions(ctx.response.status, expect.status));
+  if (expect.status !== undefined)
+    results.push(...statusAssertions(ctx.response.status, expect.status));
 
   if (expect.statusText !== undefined) {
     const passed = ctx.response.statusText === expect.statusText;
@@ -273,7 +329,9 @@ export function evaluateExpect(expect: ExpectDefinition | undefined, ctx: Assert
       passed,
       expected: expect.statusText,
       actual: ctx.response.statusText,
-      message: passed ? undefined : `expected status text ${formatValue(expect.statusText)}, got ${formatValue(ctx.response.statusText)}`,
+      message: passed
+        ? undefined
+        : `expected status text ${formatValue(expect.statusText)}, got ${formatValue(ctx.response.statusText)}`,
     });
   }
 
@@ -301,26 +359,54 @@ export function evaluateExpect(expect: ExpectDefinition | undefined, ctx: Assert
   if (expect.time) {
     const duration = ctx.response.durationMs;
     if (expect.time.lessThan !== undefined) {
-      const passed = duration < expect.time.lessThan;
-      results.push({
-        target: 'time',
-        expression: `response time < ${expect.time.lessThan}ms`,
-        passed,
-        expected: `< ${expect.time.lessThan}ms`,
-        actual: `${duration}ms`,
-        message: passed ? undefined : `response took ${duration}ms, expected less than ${expect.time.lessThan}ms`,
-      });
+      const limit = Number(expect.time.lessThan);
+      if (!Number.isFinite(limit)) {
+        results.push({
+          target: 'time',
+          expression: `response time < ${String(expect.time.lessThan)}ms`,
+          passed: false,
+          expected: `< ${String(expect.time.lessThan)}ms`,
+          actual: `${duration}ms`,
+          message: `the "lessThan" limit must be a number, got ${String(expect.time.lessThan)} (unresolved template?)`,
+        });
+      } else {
+        const passed = duration < limit;
+        results.push({
+          target: 'time',
+          expression: `response time < ${limit}ms`,
+          passed,
+          expected: `< ${limit}ms`,
+          actual: `${duration}ms`,
+          message: passed
+            ? undefined
+            : `response took ${duration}ms, expected less than ${limit}ms`,
+        });
+      }
     }
     if (expect.time.moreThan !== undefined) {
-      const passed = duration > expect.time.moreThan;
-      results.push({
-        target: 'time',
-        expression: `response time > ${expect.time.moreThan}ms`,
-        passed,
-        expected: `> ${expect.time.moreThan}ms`,
-        actual: `${duration}ms`,
-        message: passed ? undefined : `response took ${duration}ms, expected more than ${expect.time.moreThan}ms`,
-      });
+      const limit = Number(expect.time.moreThan);
+      if (!Number.isFinite(limit)) {
+        results.push({
+          target: 'time',
+          expression: `response time > ${String(expect.time.moreThan)}ms`,
+          passed: false,
+          expected: `> ${String(expect.time.moreThan)}ms`,
+          actual: `${duration}ms`,
+          message: `the "moreThan" limit must be a number, got ${String(expect.time.moreThan)} (unresolved template?)`,
+        });
+      } else {
+        const passed = duration > limit;
+        results.push({
+          target: 'time',
+          expression: `response time > ${limit}ms`,
+          passed,
+          expected: `> ${limit}ms`,
+          actual: `${duration}ms`,
+          message: passed
+            ? undefined
+            : `response took ${duration}ms, expected more than ${limit}ms`,
+        });
+      }
     }
   }
 

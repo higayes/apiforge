@@ -5,7 +5,12 @@
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { ConfigError, loadProject, type LoadProjectOptions, type ProjectContext } from '@apiforge/engine';
+import {
+  ConfigError,
+  loadProject,
+  type LoadProjectOptions,
+  type ProjectContext,
+} from '@apiforge/engine';
 import type { Ui } from '../ui.js';
 
 export const STARTER_FILES: Array<{ path: string; content: string }> = [
@@ -130,7 +135,9 @@ export interface InitOptions {
   ui: Ui;
 }
 
-export async function runInit(options: InitOptions): Promise<{ created: string[]; skipped: string[] }> {
+export async function runInit(
+  options: InitOptions,
+): Promise<{ created: string[]; skipped: string[] }> {
   const target = resolve(options.directory ?? process.cwd());
   const created: string[] = [];
   const skipped: string[] = [];
@@ -151,7 +158,9 @@ export async function runInit(options: InitOptions): Promise<{ created: string[]
   const gitignorePath = join(target, '.gitignore');
   if (existsSync(gitignorePath)) {
     const content = await readFile(gitignorePath, 'utf8');
-    const additions = ['reports/', '.apiforge/', '.env', '.env.*'].filter((entry) => !content.includes(entry));
+    const additions = ['reports/', '.apiforge/', '.env', '.env.*'].filter(
+      (entry) => !content.includes(entry),
+    );
     if (additions.length > 0) {
       await writeFile(gitignorePath, `${content.trimEnd()}\n${additions.join('\n')}\n`, 'utf8');
       created.push('.gitignore (updated)');
@@ -165,7 +174,10 @@ export async function runInit(options: InitOptions): Promise<{ created: string[]
 }
 
 /** Load the project rooted at `cwd`, with an explicit target list if given. */
-export async function openProject(cwd: string, targets: string[] | undefined): Promise<ProjectContext> {
+export async function openProject(
+  cwd: string,
+  targets: string[] | undefined,
+): Promise<ProjectContext> {
   const projectOptions: LoadProjectOptions = { cwd };
   if (targets && targets.length > 0) projectOptions.targets = targets;
   return loadProject(projectOptions);
@@ -203,7 +215,8 @@ export async function isSuiteDirectory(dir: string): Promise<boolean> {
 export async function ensureDirectory(path: string): Promise<string> {
   const target = resolve(path);
   const info = await stat(target).catch(() => undefined);
-  if (info && !info.isDirectory()) throw new ConfigError(`Expected a directory but found a file: ${path}`);
+  if (info && !info.isDirectory())
+    throw new ConfigError(`Expected a directory but found a file: ${path}`);
   await mkdir(target, { recursive: true });
   return target;
 }

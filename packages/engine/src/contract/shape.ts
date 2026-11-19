@@ -27,8 +27,13 @@ export function inferShape(value: unknown, depth = 0): ShapeNode {
   if (depth > MAX_DEPTH) return { type: 'unknown' };
   if (type === 'array') {
     const items = value as unknown[];
-    const elementShapes = items.slice(0, MAX_SAMPLE_ITEMS).map((item) => inferShape(item, depth + 1));
-    return { type: 'array', ...(elementShapes.length > 0 ? { element: mergeShapes(elementShapes) } : {}) };
+    const elementShapes = items
+      .slice(0, MAX_SAMPLE_ITEMS)
+      .map((item) => inferShape(item, depth + 1));
+    return {
+      type: 'array',
+      ...(elementShapes.length > 0 ? { element: mergeShapes(elementShapes) } : {}),
+    };
   }
   if (type === 'object') {
     const record = value as Record<string, unknown>;
@@ -56,7 +61,8 @@ export function mergeShapes(shapes: ShapeNode[]): ShapeNode {
     const only = nonNull[0] as ShapeNode;
     if (only.type === 'object') {
       const keys = new Set<string>();
-      for (const shape of nonNull) for (const key of Object.keys(shape.properties ?? {})) keys.add(key);
+      for (const shape of nonNull)
+        for (const key of Object.keys(shape.properties ?? {})) keys.add(key);
       const properties: Record<string, ShapeNode> = {};
       for (const key of keys) {
         const candidates: ShapeNode[] = [];
@@ -69,7 +75,9 @@ export function mergeShapes(shapes: ShapeNode[]): ShapeNode {
       return { type: 'object', properties, ...(nullable ? { nullable: true } : {}) };
     }
     if (only.type === 'array') {
-      const elements = nonNull.map((shape) => shape.element).filter((shape): shape is ShapeNode => shape !== undefined);
+      const elements = nonNull
+        .map((shape) => shape.element)
+        .filter((shape): shape is ShapeNode => shape !== undefined);
       return {
         type: 'array',
         ...(elements.length > 0 ? { element: mergeShapes(elements) } : {}),
@@ -86,7 +94,12 @@ function describeNode(node: ShapeNode | undefined): string {
   return node.nullable ? `${node.type} | null` : node.type;
 }
 
-export function diffShapes(baseline: ShapeNode, current: ShapeNode, basePath = '$', out: ShapeChange[] = []): ShapeChange[] {
+export function diffShapes(
+  baseline: ShapeNode,
+  current: ShapeNode,
+  basePath = '$',
+  out: ShapeChange[] = [],
+): ShapeChange[] {
   if (baseline.type !== current.type) {
     // nullability changes on an otherwise identical branch are non-breaking.
     if (baseline.nullable || current.nullable) {
@@ -94,7 +107,12 @@ export function diffShapes(baseline: ShapeNode, current: ShapeNode, basePath = '
       const bareB = { ...current, nullable: false };
       if (bareA.type === bareB.type) return out;
     }
-    out.push({ path: basePath, change: 'type-changed', before: describeNode(baseline), after: describeNode(current) });
+    out.push({
+      path: basePath,
+      change: 'type-changed',
+      before: describeNode(baseline),
+      after: describeNode(current),
+    });
     return out;
   }
 
@@ -113,7 +131,11 @@ export function diffShapes(baseline: ShapeNode, current: ShapeNode, basePath = '
     }
     for (const key of Object.keys(currentProps)) {
       if (baselineProps[key] === undefined) {
-        out.push({ path: `${basePath}.${key}`, change: 'added', after: describeNode(currentProps[key]) });
+        out.push({
+          path: `${basePath}.${key}`,
+          change: 'added',
+          after: describeNode(currentProps[key]),
+        });
       }
     }
     return out;

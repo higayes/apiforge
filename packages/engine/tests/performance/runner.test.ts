@@ -85,7 +85,13 @@ describe('runPerformance', () => {
   });
 
   it('counts HTTP error statuses as failures', async () => {
-    const report = await runPerformance({ method: 'GET', url: `${server.url}/status/500`, maxRequests: 5, concurrency: 1, tool });
+    const report = await runPerformance({
+      method: 'GET',
+      url: `${server.url}/status/500`,
+      maxRequests: 5,
+      concurrency: 1,
+      tool,
+    });
     expect(report.stats.failed).toBe(5);
     expect(report.stats.errorRate).toBe(100);
   });

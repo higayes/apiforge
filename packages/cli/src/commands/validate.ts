@@ -1,5 +1,11 @@
 import type { Command } from 'commander';
-import { loadEnvironments, loadSuitesFromFiles, readTextFile, parseDocument, ConfigError } from '@apiforge/engine';
+import {
+  loadEnvironments,
+  loadSuitesFromFiles,
+  readTextFile,
+  parseDocument,
+  ConfigError,
+} from '@apiforge/engine';
 import { dirname, resolve } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { EXIT_CONFIG, EXIT_SUCCESS } from '../exit-codes.js';
@@ -16,6 +22,8 @@ interface ValidateCommandOptions {
 
 export interface ValidationSummary {
   files: Array<{ file: string; ok: boolean; tests?: number; error?: string }>;
+  /** YAML/JSON files that are not suites (data files, specifications). */
+  skipped: string[];
   environments: Array<{ name: string; file: string; ok: boolean; error?: string }>;
   ok: boolean;
 }
@@ -34,7 +42,7 @@ export function registerValidateCommand(program: Command): void {
     .option('--no-color', 'disable coloured output')
     .action(async (paths: string[], options: ValidateCommandOptions) => {
       const ui = createUiFromCommand(options);
-      const summary: ValidationSummary = { files: [], environments: [], ok: true };
+      const summary: ValidationSummary = { files: [], skipped: [], environments: [], ok: true };
 
       const targets = paths.length > 0 ? paths.map((path) => resolve(path)) : [process.cwd()];
       const suiteFiles: string[] = [];
@@ -59,7 +67,15 @@ export function registerValidateCommand(program: Command): void {
 
       for (const file of suiteFiles) {
         try {
-          const loaded = await loadSuitesFromFiles([file], dirname(file));
+          const loaded = await loadSuitesFromFiles([file], dirname(file), {
+            allowNonSuites: true,
+          });
+          if (loaded.length === 0) {
+            // A YAML/JSON file without a `tests` key is data (a `dataFile`, an
+            // OpenAPI document, a perf/security spec) — not a broken suite.
+            summary.skipped.push(file);
+            continue;
+          }
           summary.files.push({ file, ok: true, tests: loaded[0]?.suite.tests.length ?? 0 });
         } catch (error) {
           summary.ok = false;
@@ -81,7 +97,12 @@ export function registerValidateCommand(program: Command): void {
           }
         } catch (error) {
           summary.ok = false;
-          summary.environments.push({ name: '?', file: '—', ok: false, error: (error as Error).message });
+          summary.environments.push({
+            name: '?',
+            file: '—',
+            ok: false,
+            error: (error as Error).message,
+          });
         }
       }
 
@@ -115,8 +136,17 @@ export function registerValidateCommand(program: Command): void {
         }
         for (const environment of summary.environments) {
           if (environment.name === '(none)') continue;
-          if (environment.ok) ui.line(`${ui.palette.green('✔')} environment: ${environment.name} ${ui.palette.gray(environment.file)}`);
-          else ui.line(`${ui.palette.red('✖')} environment ${environment.name}: ${environment.error}`);
+          if (environment.ok)
+            ui.line(
+              `${ui.palette.green('✔')} environment: ${environment.name} ${ui.palette.gray(environment.file)}`,
+            );
+          else
+            ui.line(`${ui.palette.red('✖')} environment ${environment.name}: ${environment.error}`);
+        }
+        if (summary.skipped.length > 0 && options.verbose === true) {
+          for (const file of summary.skipped) {
+            ui.line(`${ui.palette.gray('·')} ${file} ${ui.palette.gray('(not a suite, skipped)')}`);
+          }
         }
         if (summary.ok) ui.success('All files are valid.');
         else ui.fail('Validation failed.');

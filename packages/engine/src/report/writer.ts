@@ -6,8 +6,19 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ReportError } from '../errors.js';
-import type { AnyReport, ContractReport, PerformanceReport, SecurityReport, TestReport } from '../types.js';
-import { renderTestJson, renderPerformanceJson, renderSecurityJson, renderContractJson } from './json.js';
+import type {
+  AnyReport,
+  ContractReport,
+  PerformanceReport,
+  SecurityReport,
+  TestReport,
+} from '../types.js';
+import {
+  renderTestJson,
+  renderPerformanceJson,
+  renderSecurityJson,
+  renderContractJson,
+} from './json.js';
 import { renderJUnit } from './junit.js';
 import {
   renderContractHtml,
@@ -67,27 +78,46 @@ async function writeAtomic(path: string, content: string): Promise<number> {
     await rename(temp, path);
     return Buffer.byteLength(content, 'utf8');
   } catch (error) {
-    throw new ReportError(`Could not write report file: ${path}`, [String((error as Error).message)], error);
+    throw new ReportError(
+      `Could not write report file: ${path}`,
+      [String((error as Error).message)],
+      error,
+    );
   }
 }
 
-export async function writeReports(report: AnyReport, options: WriteReportsOptions): Promise<WrittenArtifact[]> {
-  const formats = options.formats.filter((format): format is Exclude<ReportFormat, 'terminal'> => format !== 'terminal');
+export async function writeReports(
+  report: AnyReport,
+  options: WriteReportsOptions,
+): Promise<WrittenArtifact[]> {
+  const formats = options.formats.filter(
+    (format): format is Exclude<ReportFormat, 'terminal'> => format !== 'terminal',
+  );
   if (formats.length === 0) return [];
 
   const outDir = resolve(options.outDir);
   try {
     await mkdir(outDir, { recursive: true });
   } catch (error) {
-    throw new ReportError(`Could not create report directory: ${outDir}`, [String((error as Error).message)], error);
+    throw new ReportError(
+      `Could not create report directory: ${outDir}`,
+      [String((error as Error).message)],
+      error,
+    );
   }
 
-  const base = options.baseName ?? reportFileBase(report.title, report.kind, new Date(report.generatedAt));
+  const base =
+    options.baseName ?? reportFileBase(report.title, report.kind, new Date(report.generatedAt));
   const artifacts: WrittenArtifact[] = [];
 
   for (const format of formats) {
     const extension = format === 'junit' ? 'xml' : format;
-    const content = format === 'json' ? serializeJson(report) : format === 'junit' ? renderJUnit(report as TestReport) : serializeHtml(report);
+    const content =
+      format === 'json'
+        ? serializeJson(report)
+        : format === 'junit'
+          ? renderJUnit(report as TestReport)
+          : serializeHtml(report);
     const path = join(outDir, `${base}.${extension}`);
     const bytes = await writeAtomic(path, content);
     artifacts.push({ format, path, bytes });

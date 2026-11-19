@@ -1,0 +1,81 @@
+# Smoke suite — the fast "is it up and shaped right?" check.
+#
+# Demonstrates: status expectations (exact, list, range), header assertions,
+# body assertions, JSONPath value checks, response-time budgets, tags and
+# intentional skips.
+name: Demo API - smoke
+description: Fast confidence checks that the demo API is reachable and well-formed.
+
+defaults:
+  timeoutMs: 3000
+
+tests:
+  - name: Health endpoint reports ok
+    id: health
+    method: GET
+    path: /health
+    tags: [smoke, health]
+    expect:
+      status: 200
+      headers:
+        content-type: { contains: application/json }
+      jsonPath:
+        status: { equals: ok }
+        uptimeSeconds: { type: number, min: 0 }
+      time:
+        lessThan: 1000
+
+  - name: Unknown routes return a JSON 404
+    method: GET
+    path: /definitely-not-here
+    tags: [smoke, errors]
+    expect:
+      status: 404
+      jsonPath:
+        error: { equals: not_found }
+        path: { equals: /definitely-not-here }
+
+  - name: Latency budget for the list endpoint
+    method: GET
+    path: /api/users
+    query:
+      page: 1
+      limit: 2
+    tags: [smoke, perf]
+    expect:
+      status: 200
+      time:
+        lessThan: 1500
+      jsonPath:
+        data: { type: array, length: 2 }
+        meta.total: { type: number, gte: 3 }
+
+  - name: Metrics endpoint exposes latency percentiles
+    method: GET
+    path: /api/metrics
+    tags: [smoke, observability]
+    expect:
+      status: 200
+      jsonPath:
+        latencyMs.p50: { type: number }
+        latencyMs.p99: { gte: 1 }
+
+  - name: CORS preflight is answered
+    method: OPTIONS
+    path: /api/users
+    headers:
+      origin: https://app.example.com
+      access-control-request-method: POST
+    expect:
+      status: [200, 204]
+      headers:
+        access-control-allow-methods: { contains: POST }
+
+  # A skipped test is reported as skipped and never fails the run. Useful for
+  # endpoints that only exist in some environments.
+  - name: Webhooks endpoint (not implemented yet)
+    method: POST
+    path: /api/webhooks
+    skip: Tracking in issue #42
+    expect:
+      status: 202

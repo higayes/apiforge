@@ -34,7 +34,8 @@ export class Ui {
     this.json = options.json ?? false;
     this.quiet = options.quiet ?? false;
     this.verbose = options.verbose ?? false;
-    const colorEnabled = options.color ?? detectColorSupport(this.stdout);
+    const colorEnabled =
+      options.color ?? detectColorSupport(options.json ? this.stderr : this.stdout);
     this.palette = createPalette(colorEnabled && !this.json);
     this.isTTY = this.stdout.isTTY === true && !this.json;
   }
@@ -43,13 +44,22 @@ export class Ui {
     return this.isTTY;
   }
 
+  /**
+   * In `--json` mode stdout is reserved for the machine-readable payload, so
+   * every human line is redirected to stderr. This keeps
+   * `apiforge test --json | jq` working while still showing progress.
+   */
+  private get humanStream(): NodeJS.WriteStream {
+    return this.json ? this.stderr : this.stdout;
+  }
+
   write(text: string): void {
-    this.stdout.write(text);
+    this.humanStream.write(text);
   }
 
   line(text = ''): void {
     if (this.quiet) return;
-    this.stdout.write(`${text}\n`);
+    this.humanStream.write(`${text}\n`);
   }
 
   error(text: string): void {
@@ -133,6 +143,6 @@ export class Ui {
   /** Print a block of already-formatted text (e.g. a rendered report). */
   block(text: string): void {
     if (this.quiet) return;
-    this.stdout.write(`${text.endsWith('\n') ? text : `${text}\n`}`);
+    this.humanStream.write(`${text.endsWith('\n') ? text : `${text}\n`}`);
   }
 }

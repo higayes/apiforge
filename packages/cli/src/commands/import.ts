@@ -1,7 +1,12 @@
 import type { Command } from 'commander';
 import { writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
-import { importOpenApiDocument, parseDocument, stringifySuite, type ImportOptions } from '@apiforge/engine';
+import {
+  importOpenApiDocument,
+  parseDocument,
+  stringifySuite,
+  type ImportOptions,
+} from '@apiforge/engine';
 import { EXIT_SUCCESS } from '../exit-codes.js';
 import { createUiFromCommand } from '../lib/context.js';
 import { TOOL_INFO } from '../lib/version.js';
@@ -42,9 +47,12 @@ export function registerImportCommand(program: Command): void {
       } catch (error) {
         const { ConfigError } = await import('@apiforge/engine');
         const code = (error as { code?: string }).code;
-        throw new ConfigError(code === 'ENOENT' ? `Specification not found: ${specPath}` : `Could not read specification: ${specPath}`, [
-          String((error as Error).message),
-        ]);
+        throw new ConfigError(
+          code === 'ENOENT'
+            ? `Specification not found: ${specPath}`
+            : `Could not read specification: ${specPath}`,
+          [String((error as Error).message)],
+        );
       }
 
       const document = parseDocument(content, specPath);
@@ -56,14 +64,26 @@ export function registerImportCommand(program: Command): void {
       };
 
       const result = importOpenApiDocument(document, importOptions);
-      const outPath = resolve(options.out ?? `${basename(specPath).replace(/\.(ya?ml|json)$/i, '')}.suite.yaml`);
-      await writeFile(outPath, stringifySuite(result.suite), 'utf8');
+      const outPath = resolve(
+        options.out ?? `${basename(specPath).replace(/\.(ya?ml|json)$/i, '')}.suite.yaml`,
+      );
+      // A suite must keep a recognised extension: APIFORGE discovers suites by
+      // `*.suite.yaml` / `*.yaml` / `*.json`. Writing `-o out` without one would
+      // produce a file that `apiforge test` silently ignores, so we add `.yaml`
+      // and say so rather than creating an invisible artefact.
+      const hasSuiteExtension = /\.(suite\.)?(ya?ml|json)$/i.test(outPath);
+      const finalPath = hasSuiteExtension ? outPath : `${outPath}.yaml`;
+      await writeFile(finalPath, stringifySuite(result.suite), 'utf8');
+      const outPath2 = finalPath;
+      if (!hasSuiteExtension) {
+        ui.detail(`Added the .yaml extension: ${basename(finalPath)}`);
+      }
 
       for (const warning of result.warnings) ui.warn(warning);
 
       if (options.json) {
         process.stdout.write(
-          `${JSON.stringify({ ok: true, suite: result.suite.name, operations: result.operationCount, out: outPath, warnings: result.warnings }, null, 2)}\n`,
+          `${JSON.stringify({ ok: true, suite: result.suite.name, operations: result.operationCount, out: outPath2, warnings: result.warnings }, null, 2)}\n`,
         );
         process.exitCode = EXIT_SUCCESS;
         return;
@@ -71,12 +91,14 @@ export function registerImportCommand(program: Command): void {
 
       ui.banner(TOOL_INFO.version);
       ui.success(`Imported ${result.operationCount} operation(s) as "${result.suite.name}"`);
-      ui.line(`  ${ui.palette.green('+')} ${outPath}`);
+      ui.line(`  ${ui.palette.green('+')} ${outPath2}`);
       if (options.verbose) {
         for (const warning of result.warnings) ui.detail(warning);
       }
       ui.line();
-      ui.line(`Next: review the generated suite, adjust variables/secrets, then run ${ui.palette.cyan(`apiforge test ${outPath}`)}`);
+      ui.line(
+        `Next: review the generated suite, adjust variables/secrets, then run ${ui.palette.cyan(`apiforge test ${outPath2}`)}`,
+      );
       process.exitCode = EXIT_SUCCESS;
     });
 }

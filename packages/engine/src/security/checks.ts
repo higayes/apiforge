@@ -79,13 +79,15 @@ const SECURITY_HEADERS: Array<{
     name: 'strict-transport-security',
     severity: 'medium',
     explanation: 'HSTS is missing, so browsers may be downgraded to plain HTTP on later visits.',
-    remediation: 'Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS responses.',
+    remediation:
+      'Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS responses.',
     appliesTo: (ctx) => ctx.isHttps,
   },
   {
     name: 'content-security-policy',
     severity: 'low',
-    explanation: 'A Content-Security-Policy helps browsers mitigate injected content when responses are rendered.',
+    explanation:
+      'A Content-Security-Policy helps browsers mitigate injected content when responses are rendered.',
     remediation:
       "Send a restrictive `Content-Security-Policy` (for JSON APIs, `default-src 'none'; frame-ancestors 'none'` is a safe baseline).",
     appliesTo: (ctx) => /text\/html/i.test(ctx.contentType),
@@ -93,28 +95,33 @@ const SECURITY_HEADERS: Array<{
   {
     name: 'x-content-type-options',
     severity: 'medium',
-    explanation: 'Without `nosniff`, browsers may MIME-sniff responses and execute content unexpectedly.',
+    explanation:
+      'Without `nosniff`, browsers may MIME-sniff responses and execute content unexpectedly.',
     remediation: 'Send `X-Content-Type-Options: nosniff`.',
   },
   {
     name: 'x-frame-options',
     severity: 'low',
-    explanation: 'The response can be embedded in an iframe, enabling clickjacking against browser clients.',
+    explanation:
+      'The response can be embedded in an iframe, enabling clickjacking against browser clients.',
     remediation: 'Send `X-Frame-Options: DENY` (or use CSP `frame-ancestors`).',
     appliesTo: (ctx) => /text\/html/i.test(ctx.contentType),
   },
   {
     name: 'referrer-policy',
     severity: 'low',
-    explanation: 'Without a Referrer-Policy, sensitive URL data can leak to third parties via the Referer header.',
+    explanation:
+      'Without a Referrer-Policy, sensitive URL data can leak to third parties via the Referer header.',
     remediation: 'Send `Referrer-Policy: strict-origin-when-cross-origin` (or stricter).',
     appliesTo: (ctx) => /text\/html/i.test(ctx.contentType),
   },
   {
     name: 'permissions-policy',
     severity: 'info',
-    explanation: 'A Permissions-Policy limits access to powerful browser features for embedded documents.',
-    remediation: 'Send a `Permissions-Policy` that disables features the API does not need (e.g. `geolocation=(), camera=(), microphone=()`).',
+    explanation:
+      'A Permissions-Policy limits access to powerful browser features for embedded documents.',
+    remediation:
+      'Send a `Permissions-Policy` that disables features the API does not need (e.g. `geolocation=(), camera=(), microphone=()`).',
     appliesTo: (ctx) => /text\/html/i.test(ctx.contentType),
   },
 ];
@@ -198,7 +205,8 @@ export function checkSecurityHeaders(
           severity: 'low',
           description: 'Short HSTS lifetimes reduce protection against downgrade attacks.',
           evidence: `strict-transport-security: ${hsts}`,
-          remediation: 'Use `max-age=31536000; includeSubDomains` (and submit to the HSTS preload list when appropriate).',
+          remediation:
+            'Use `max-age=31536000; includeSubDomains` (and submit to the HSTS preload list when appropriate).',
         }),
       );
     }
@@ -210,7 +218,8 @@ export function checkSecurityHeaders(
           category: 'security-headers',
           status: 'warn',
           severity: 'low',
-          description: 'Subdomains remain reachable over plain HTTP when `includeSubDomains` is absent.',
+          description:
+            'Subdomains remain reachable over plain HTTP when `includeSubDomains` is absent.',
           evidence: `strict-transport-security: ${hsts}`,
           remediation: 'Add `includeSubDomains` once every subdomain supports HTTPS.',
         }),
@@ -223,9 +232,13 @@ export function checkSecurityHeaders(
 
 /* --------------------------------- CORS ----------------------------------- */
 
-export function checkCors(headers: Record<string, string>, options: { origin?: string }): SecurityFinding[] {
+export function checkCors(
+  headers: Record<string, string>,
+  options: { origin?: string },
+): SecurityFinding[] {
   const allowOrigin = headerValue(headers, 'access-control-allow-origin');
-  const allowCredentials = (headerValue(headers, 'access-control-allow-credentials') ?? '').toLowerCase() === 'true';
+  const allowCredentials =
+    (headerValue(headers, 'access-control-allow-credentials') ?? '').toLowerCase() === 'true';
   const allowMethods = headerValue(headers, 'access-control-allow-methods');
   const requestedOrigin = options.origin;
   const findings: SecurityFinding[] = [];
@@ -238,9 +251,11 @@ export function checkCors(headers: Record<string, string>, options: { origin?: s
         category: 'cors',
         status: 'info',
         severity: 'info',
-        description: 'The endpoint does not send CORS headers. This is expected for server-to-server APIs; browser clients will not be able to call it cross-origin.',
+        description:
+          'The endpoint does not send CORS headers. This is expected for server-to-server APIs; browser clients will not be able to call it cross-origin.',
         evidence: 'No Access-Control-Allow-Origin header.',
-        remediation: 'If browser clients must call this API, configure an explicit allow-list of trusted origins.',
+        remediation:
+          'If browser clients must call this API, configure an explicit allow-list of trusted origins.',
       }),
     );
     return findings;
@@ -258,7 +273,8 @@ export function checkCors(headers: Record<string, string>, options: { origin?: s
           ? 'The endpoint reflects any origin AND allows credentials, letting any website make authenticated calls on behalf of signed-in users.'
           : 'Any website can read responses from this endpoint in a browser.',
         evidence: `access-control-allow-origin: *${allowCredentials ? '\naccess-control-allow-credentials: true' : ''}`,
-        remediation: 'Replace `*` with an explicit allow-list of trusted origins, and only send `Access-Control-Allow-Credentials: true` when strictly required.',
+        remediation:
+          'Replace `*` with an explicit allow-list of trusted origins, and only send `Access-Control-Allow-Credentials: true` when strictly required.',
         references: ['https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS'],
       }),
     );
@@ -276,7 +292,8 @@ export function checkCors(headers: Record<string, string>, options: { origin?: s
         evidence: `Requested origin: ${requestedOrigin}\naccess-control-allow-origin: ${allowOrigin}${
           allowCredentials ? '\naccess-control-allow-credentials: true' : ''
         }`,
-        remediation: 'Validate the Origin header against an explicit allow-list before reflecting it.',
+        remediation:
+          'Validate the Origin header against an explicit allow-list before reflecting it.',
       }),
     );
   } else {
@@ -390,7 +407,8 @@ export function checkCookies(headers: Record<string, string>, isHttps: boolean):
         category: 'cookies',
         status: PASS,
         severity: 'info',
-        description: 'Cookies set by the endpoint include Secure, HttpOnly and SameSite attributes.',
+        description:
+          'Cookies set by the endpoint include Secure, HttpOnly and SameSite attributes.',
         remediation: 'No action needed.',
       }),
     );
@@ -401,18 +419,41 @@ export function checkCookies(headers: Record<string, string>, isHttps: boolean):
 /* ---------------------------- Info disclosure ----------------------------- */
 
 const DISCLOSURE_HEADERS: Array<{ name: string; severity: Severity; detail: string }> = [
-  { name: 'server', severity: 'low', detail: 'The Server header discloses server software and version.' },
-  { name: 'x-powered-by', severity: 'low', detail: 'The X-Powered-By header discloses the application framework.' },
-  { name: 'x-aspnet-version', severity: 'low', detail: 'The X-AspNet-Version header discloses framework versions.' },
-  { name: 'x-aspnetmvc-version', severity: 'low', detail: 'The X-AspNetMvc-Version header discloses framework versions.' },
-  { name: 'x-generator', severity: 'low', detail: 'The X-Generator header discloses the CMS or generator.' },
+  {
+    name: 'server',
+    severity: 'low',
+    detail: 'The Server header discloses server software and version.',
+  },
+  {
+    name: 'x-powered-by',
+    severity: 'low',
+    detail: 'The X-Powered-By header discloses the application framework.',
+  },
+  {
+    name: 'x-aspnet-version',
+    severity: 'low',
+    detail: 'The X-AspNet-Version header discloses framework versions.',
+  },
+  {
+    name: 'x-aspnetmvc-version',
+    severity: 'low',
+    detail: 'The X-AspNetMvc-Version header discloses framework versions.',
+  },
+  {
+    name: 'x-generator',
+    severity: 'low',
+    detail: 'The X-Generator header discloses the CMS or generator.',
+  },
   { name: 'via', severity: 'info', detail: 'The Via header discloses intermediary proxies.' },
 ];
 
 /** Mask any credential-looking token inside free text used as evidence. */
 export function maskSecretsInText(text: string): string {
   let out = text.replace(/\.\.\.[\s\S]*$/, '…');
-  out = out.replace(/\b(eyJ[A-Za-z0-9_-]{4})[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g, '$1.[REDACTED].[REDACTED]');
+  out = out.replace(
+    /\b(eyJ[A-Za-z0-9_-]{4})[A-Za-z0-9_-]*\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}/g,
+    '$1.[REDACTED].[REDACTED]',
+  );
   out = out.replace(/\b(AKIA)[0-9A-Z]{16}\b/g, '$1[REDACTED]');
   out = out.replace(/\b(sk_(?:live|test)_)[A-Za-z0-9]{4,}/g, '$1[REDACTED]');
   out = out.replace(/\b(gh[pousr]_)[A-Za-z0-9]{4,}/g, '$1[REDACTED]');
@@ -422,14 +463,54 @@ export function maskSecretsInText(text: string): string {
   return out;
 }
 
-const SENSITIVE_BODY_PATTERNS: Array<{ id: string; pattern: RegExp; label: string; severity: Severity }> = [
-  { id: 'stripe-key', pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}/, label: 'Stripe secret key', severity: 'critical' },
-  { id: 'aws-access-key', pattern: /\bAKIA[0-9A-Z]{16}\b/, label: 'AWS access key id', severity: 'critical' },
-  { id: 'github-token', pattern: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/, label: 'GitHub token', severity: 'critical' },
-  { id: 'slack-token', pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/, label: 'Slack token', severity: 'critical' },
-  { id: 'private-key', pattern: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/, label: 'Embedded private key', severity: 'critical' },
-  { id: 'jwt', pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/, label: 'JSON Web Token in response body', severity: 'medium' },
-  { id: 'google-api-key', pattern: /\bAIza[0-9A-Za-z_-]{35}\b/, label: 'Google API key', severity: 'high' },
+const SENSITIVE_BODY_PATTERNS: Array<{
+  id: string;
+  pattern: RegExp;
+  label: string;
+  severity: Severity;
+}> = [
+  {
+    id: 'stripe-key',
+    pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{16,}/,
+    label: 'Stripe secret key',
+    severity: 'critical',
+  },
+  {
+    id: 'aws-access-key',
+    pattern: /\bAKIA[0-9A-Z]{16}\b/,
+    label: 'AWS access key id',
+    severity: 'critical',
+  },
+  {
+    id: 'github-token',
+    pattern: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/,
+    label: 'GitHub token',
+    severity: 'critical',
+  },
+  {
+    id: 'slack-token',
+    pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/,
+    label: 'Slack token',
+    severity: 'critical',
+  },
+  {
+    id: 'private-key',
+    pattern: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/,
+    label: 'Embedded private key',
+    severity: 'critical',
+  },
+  {
+    id: 'jwt',
+    pattern: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/,
+    label: 'JSON Web Token in response body',
+    severity: 'medium',
+  },
+  {
+    id: 'google-api-key',
+    pattern: /\bAIza[0-9A-Za-z_-]{35}\b/,
+    label: 'Google API key',
+    severity: 'high',
+  },
 ];
 
 export function checkDisclosure(
@@ -446,7 +527,9 @@ export function checkDisclosure(
       findings.push(
         finding({
           id: `disclosure.${header.name}`,
-          title: versioned ? `${header.name} header reveals version information` : `${header.name} header is present`,
+          title: versioned
+            ? `${header.name} header reveals version information`
+            : `${header.name} header is present`,
           category: 'information-disclosure',
           status: versioned ? 'warn' : 'info',
           severity: versioned ? header.severity : 'info',
@@ -471,7 +554,10 @@ export function checkDisclosure(
     );
   }
 
-  const errorLeak = /(?:Error:|Exception in thread|Stack trace|at\s+[\w$.]+\s*\([^)]*:\d+:\d+\)|SQLSyntaxErrorException|ORA-\d{5}|psql: error)/i.exec(bodyText);
+  const errorLeak =
+    /(?:Error:|Exception in thread|Stack trace|at\s+[\w$.]+\s*\([^)]*:\d+:\d+\)|SQLSyntaxErrorException|ORA-\d{5}|psql: error)/i.exec(
+      bodyText,
+    );
   if (errorLeak) {
     const snippetStart = Math.max(0, (errorLeak.index ?? 0) - 40);
     const snippet = maskSecretsInText(bodyText.slice(snippetStart, snippetStart + 200));
@@ -482,9 +568,11 @@ export function checkDisclosure(
         category: 'information-disclosure',
         status: 'warn',
         severity: 'medium',
-        description: 'Verbose error output can reveal internals (file paths, SQL, library versions) to attackers.',
+        description:
+          'Verbose error output can reveal internals (file paths, SQL, library versions) to attackers.',
         evidence: `…${snippet.replace(/\s+/g, ' ')}…`,
-        remediation: 'Return generic error messages to clients and log technical details server-side with a correlation id.',
+        remediation:
+          'Return generic error messages to clients and log technical details server-side with a correlation id.',
       }),
     );
   }
@@ -503,7 +591,8 @@ export function checkDisclosure(
         severity: probe.severity,
         description: `The response body appears to contain a ${probe.label}. Responses must never include credentials or secrets.`,
         evidence: `Matched value: ${masked}`,
-        remediation: 'Remove the secret from the response, rotate it, and audit where it is stored and logged.',
+        remediation:
+          'Remove the secret from the response, rotate it, and audit where it is stored and logged.',
       }),
     );
   }
@@ -516,7 +605,10 @@ export function checkDisclosure(
 export function checkAuth(headers: Record<string, string>, status: number): SecurityFinding[] {
   const findings: SecurityFinding[] = [];
   const wwwAuthenticate = headerValue(headers, 'www-authenticate');
-  const rateLimit = headerValue(headers, 'ratelimit-limit') ?? headerValue(headers, 'x-ratelimit-limit') ?? headerValue(headers, 'retry-after');
+  const rateLimit =
+    headerValue(headers, 'ratelimit-limit') ??
+    headerValue(headers, 'x-ratelimit-limit') ??
+    headerValue(headers, 'retry-after');
 
   if (status === 401) {
     if (wwwAuthenticate === undefined) {
@@ -559,7 +651,8 @@ export function checkAuth(headers: Record<string, string>, status: number): Secu
         description:
           'The endpoint returned a success status to an unauthenticated request. Confirm this data is intentionally public.',
         evidence: `HTTP ${status} without an Authorization header.`,
-        remediation: 'Verify the route is meant to be public; otherwise require authentication and return 401.',
+        remediation:
+          'Verify the route is meant to be public; otherwise require authentication and return 401.',
       }),
     );
   }
@@ -573,9 +666,11 @@ export function checkAuth(headers: Record<string, string>, status: number): Secu
           category: 'authentication',
           status: 'info',
           severity: 'low',
-          description: 'Rate-limit headers help clients back off and indicate brute-force protection.',
+          description:
+            'Rate-limit headers help clients back off and indicate brute-force protection.',
           evidence: 'No RateLimit-*, X-RateLimit-* or Retry-After headers observed.',
-          remediation: 'Publish standard rate-limit headers (e.g. `RateLimit-Limit`, `RateLimit-Remaining`, `Retry-After`).',
+          remediation:
+            'Publish standard rate-limit headers (e.g. `RateLimit-Limit`, `RateLimit-Remaining`, `Retry-After`).',
         }),
       );
     }
@@ -613,7 +708,9 @@ export function checkTls(url: string, headers: Record<string, string>): Security
       status: PASS,
       severity: 'info',
       description: 'TLS is in use and the certificate chain was verified by the client.',
-      evidence: hsts ? `strict-transport-security: ${hsts}` : 'HTTPS connection established; HSTS header checked separately.',
+      evidence: hsts
+        ? `strict-transport-security: ${hsts}`
+        : 'HTTPS connection established; HSTS header checked separately.',
       remediation: 'No action needed.',
     }),
   );
@@ -625,7 +722,10 @@ export function checkTls(url: string, headers: Record<string, string>): Security
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
 const UNSAFE_METHODS = new Set(['PUT', 'DELETE', 'PATCH', 'CONNECT']);
 
-export function checkAdvertisedMethods(headerValues: { allow?: string; corsAllowMethods?: string }): SecurityFinding[] {
+export function checkAdvertisedMethods(headerValues: {
+  allow?: string;
+  corsAllowMethods?: string;
+}): SecurityFinding[] {
   const advertised = new Set<string>();
   for (const value of [headerValues.allow, headerValues.corsAllowMethods]) {
     if (!value) continue;
@@ -643,7 +743,8 @@ export function checkAdvertisedMethods(headerValues: { allow?: string; corsAllow
         category: 'http-methods',
         status: 'info',
         severity: 'info',
-        description: 'The endpoint does not advertise supported methods via Allow or Access-Control-Allow-Methods.',
+        description:
+          'The endpoint does not advertise supported methods via Allow or Access-Control-Allow-Methods.',
         remediation: 'Advertise supported methods on OPTIONS responses via the Allow header.',
       }),
     ];
@@ -664,7 +765,8 @@ export function checkAdvertisedMethods(headerValues: { allow?: string; corsAllow
           ? `The endpoint advertises ${method}, which mutates or removes state. Confirm it is protected by authentication and authorization.`
           : `The endpoint advertises the non-standard method ${method}.`,
         evidence: `Advertised methods: ${[...advertised].join(', ')}`,
-        remediation: 'Restrict state-changing methods to authenticated, authorized callers and disable them on public resources.',
+        remediation:
+          'Restrict state-changing methods to authenticated, authorized callers and disable them on public resources.',
       }),
     );
   }
@@ -688,7 +790,9 @@ export async function probeAllowedMethods(
     const headers = response.headers as Record<string, string | string[] | undefined>;
     const allow = Array.isArray(headers.allow) ? headers.allow.join(', ') : headers.allow;
     const corsAllowMethodsRaw = headers['access-control-allow-methods'];
-    const corsAllowMethods = Array.isArray(corsAllowMethodsRaw) ? corsAllowMethodsRaw.join(', ') : corsAllowMethodsRaw;
+    const corsAllowMethods = Array.isArray(corsAllowMethodsRaw)
+      ? corsAllowMethodsRaw.join(', ')
+      : corsAllowMethodsRaw;
     return {
       ...(allow ? { allow } : {}),
       ...(corsAllowMethods ? { corsAllowMethods } : {}),
@@ -700,7 +804,13 @@ export async function probeAllowedMethods(
 
 /* --------------------------------- Scoring -------------------------------- */
 
-const SEVERITY_WEIGHT: Record<Severity, number> = { critical: 40, high: 20, medium: 8, low: 3, info: 0 };
+const SEVERITY_WEIGHT: Record<Severity, number> = {
+  critical: 40,
+  high: 20,
+  medium: 8,
+  low: 3,
+  info: 0,
+};
 
 export function scoreFindings(findings: SecurityFinding[]): number {
   let penalty = 0;
@@ -712,7 +822,13 @@ export function scoreFindings(findings: SecurityFinding[]): number {
   return Math.max(0, Math.min(100, 100 - penalty));
 }
 
-const SEVERITY_RANK: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+  info: 0,
+};
 
 /** True when no failing finding reaches the configured severity threshold. */
 export function passesThreshold(findings: SecurityFinding[], threshold: Severity): boolean {
@@ -743,7 +859,8 @@ export async function runSecurity(options: SecurityRunOptions): Promise<Security
     ...(options.insecureTLS ? { insecureTLS: true } : {}),
   });
 
-  if (checks.headers !== false) findings.push(...checkSecurityHeaders(response.headers, options.url));
+  if (checks.headers !== false)
+    findings.push(...checkSecurityHeaders(response.headers, options.url));
   if (checks.tls !== false) findings.push(...checkTls(options.url, response.headers));
 
   if (checks.cors !== false && checks.cors !== undefined) {
@@ -752,8 +869,10 @@ export async function runSecurity(options: SecurityRunOptions): Promise<Security
     findings.push(...checkCors(corsHeaders.headers, { origin }));
   }
 
-  if (checks.cookies !== false) findings.push(...checkCookies(response.headers, options.url.startsWith('https://')));
-  if (checks.disclosure !== false) findings.push(...checkDisclosure(response.headers, response.text.slice(0, 64 * 1024)));
+  if (checks.cookies !== false)
+    findings.push(...checkCookies(response.headers, options.url.startsWith('https://')));
+  if (checks.disclosure !== false)
+    findings.push(...checkDisclosure(response.headers, response.text.slice(0, 64 * 1024)));
   if (checks.auth !== false) findings.push(...checkAuth(response.headers, response.status));
 
   if (checks.methods !== false && checks.methods !== undefined) {
@@ -768,7 +887,8 @@ export async function runSecurity(options: SecurityRunOptions): Promise<Security
           severity: 'info',
           description: 'The OPTIONS probe failed, so method advertisement could not be analysed.',
           evidence: probe.error,
-          remediation: 'No action needed; re-run with `--check methods` if the endpoint supports OPTIONS.',
+          remediation:
+            'No action needed; re-run with `--check methods` if the endpoint supports OPTIONS.',
         }),
       );
     } else {
@@ -781,7 +901,13 @@ export async function runSecurity(options: SecurityRunOptions): Promise<Security
     }
   }
 
-  const counts: Record<SecurityCheckStatus, number> = { pass: 0, warn: 0, fail: 0, info: 0, skipped: 0 };
+  const counts: Record<SecurityCheckStatus, number> = {
+    pass: 0,
+    warn: 0,
+    fail: 0,
+    info: 0,
+    skipped: 0,
+  };
   const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const entry of findings) {
     counts[entry.status] += 1;

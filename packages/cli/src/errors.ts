@@ -16,11 +16,17 @@ import type { Ui } from './ui.js';
 
 export function exitCodeForError(error: unknown): number {
   if (error instanceof UsageError) return EXIT_USAGE;
-  if (error instanceof ValidationError || error instanceof ConfigError || error instanceof ReportError) return EXIT_CONFIG;
+  if (
+    error instanceof ValidationError ||
+    error instanceof ConfigError ||
+    error instanceof ReportError
+  )
+    return EXIT_CONFIG;
   if (error instanceof RequestError) {
     return error.kind === 'cancelled' ? EXIT_INTERRUPTED : EXIT_NETWORK;
   }
-  if (error instanceof ApiForgeError) return error.code === 'CANCELLED' ? EXIT_INTERRUPTED : EXIT_CONFIG;
+  if (error instanceof ApiForgeError)
+    return error.code === 'CANCELLED' ? EXIT_INTERRUPTED : EXIT_CONFIG;
   return 1;
 }
 
@@ -28,26 +34,36 @@ function hintsFor(error: unknown): string[] {
   const hints: string[] = [];
   if (error instanceof ConfigError) {
     if (/not found/i.test(error.message) && /suite/i.test(error.message)) {
-      hints.push('Run `apiforge init` to create a starter project, or pass the suite path explicitly.');
+      hints.push(
+        'Run `apiforge init` to create a starter project, or pass the suite path explicitly.',
+      );
     }
   }
   if (error instanceof RequestError) {
     if (error.kind === 'network') {
       hints.push('Check the target URL, your network connection, and any proxy configuration.');
-      hints.push('For self-signed certificates during local development, pass `--insecure` (never in production).');
+      hints.push(
+        'For self-signed certificates during local development, pass `--insecure` (never in production).',
+      );
     }
     if (error.kind === 'timeout') {
       hints.push('Increase the timeout with `--timeout <ms>` or the `timeoutMs` suite option.');
     }
   }
-  if (error instanceof UsageError && error.message.includes('unknown') ) {
+  // Usage errors produced from Commander already carry targeted hints; adding a
+  // generic one on top would print the same advice twice.
+  if (error instanceof UsageError && error.details.length === 0) {
     hints.push('Run `apiforge --help` or `apiforge <command> --help` to see supported options.');
   }
   return hints;
 }
 
 /** Render an error for humans (or machine-readable JSON) and return free-form text. */
-export function formatCliError(error: unknown, ui: Ui, options: { json?: boolean; debug?: boolean } = {}): string {
+export function formatCliError(
+  error: unknown,
+  ui: Ui,
+  options: { json?: boolean; debug?: boolean } = {},
+): string {
   const code = exitCodeForError(error);
   const isKnown = error instanceof ApiForgeError;
   const message = isKnown ? error.message : describeUnknownError(error);
@@ -79,7 +95,15 @@ export function formatCliError(error: unknown, ui: Ui, options: { json?: boolean
     lines.push(ui.palette.gray(`  cause: ${describeUnknownError(error.cause)}`));
   }
   if (options.debug && error instanceof Error && error.stack) {
-    lines.push(ui.palette.gray(error.stack.split('\n').slice(1, 6).map((line) => `  ${line.trim()}`).join('\n')));
+    lines.push(
+      ui.palette.gray(
+        error.stack
+          .split('\n')
+          .slice(1, 6)
+          .map((line) => `  ${line.trim()}`)
+          .join('\n'),
+      ),
+    );
   }
   return lines.join('\n');
 }

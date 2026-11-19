@@ -148,7 +148,12 @@ function head(title: string): string {
 <a class="skip-link" href="#main">Skip to results</a>`;
 }
 
-function header(title: string, tagline: string, metaLines: Array<[string, string]>, badges: string): string {
+function header(
+  title: string,
+  tagline: string,
+  metaLines: Array<[string, string]>,
+  badges: string,
+): string {
   return `<header class="site"><div class="wrap">
   <div class="brand"><h1>${escapeHtml(title)}</h1><span class="tag">${escapeHtml(tagline)}</span></div>
   <div class="meta">${metaLines.map(([label, value]) => `<span>${escapeHtml(label)}: <code>${escapeHtml(value)}</code></span>`).join('')}</div>
@@ -161,7 +166,8 @@ function footer(tool: { name: string; version: string }): string {
 }
 
 function assertionList(result: TestCaseResult): string {
-  if (result.assertions.length === 0) return '<p class="muted">No assertions were configured for this request.</p>';
+  if (result.assertions.length === 0)
+    return '<p class="muted">No assertions were configured for this request.</p>';
   const items = result.assertions
     .map((assertion) => {
       const cls = assertion.passed ? 'ok' : 'bad';
@@ -173,7 +179,9 @@ function assertionList(result: TestCaseResult): string {
         )
         .join('');
       return `<li class="${cls}"><span class="mono">${escapeHtml(assertion.expression)}</span> <span class="muted">(${status})</span>${
-        !assertion.passed && assertion.message ? `<div class="assertion-msg">${escapeHtml(assertion.message)}</div>` : ''
+        !assertion.passed && assertion.message
+          ? `<div class="assertion-msg">${escapeHtml(assertion.message)}</div>`
+          : ''
       }${children}</li>`;
     })
     .join('');
@@ -335,21 +343,32 @@ export function renderPerformanceHtml(report: PerformanceReport): string {
     .join('');
   const statusRows = Object.entries(stats.statusDistribution)
     .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([status, count]) => `<tr><td class="mono">${escapeHtml(status)}</td><td class="num">${count}</td><td><span class="pill ${Number(status) < 400 ? 'pass' : 'fail'}">${Number(status) < 400 ? 'OK' : 'ERROR'}</span></td></tr>`)
+    .map(
+      ([status, count]) =>
+        `<tr><td class="mono">${escapeHtml(status)}</td><td class="num">${count}</td><td><span class="pill ${Number(status) < 400 ? 'pass' : 'fail'}">${Number(status) < 400 ? 'OK' : 'ERROR'}</span></td></tr>`,
+    )
     .join('');
   const errorRows = Object.entries(stats.errorBreakdown)
     .map(([kind, count]) => `<tr><td>${escapeHtml(kind)}</td><td class="num">${count}</td></tr>`)
     .join('');
   const thresholdRows = report.thresholds
-    .map((threshold) => `<tr><td>${escapeHtml(threshold.metric)}</td><td>${threshold.operator === 'min' ? '≥' : '≤'} ${threshold.limit}</td><td class="num">${Number.isFinite(threshold.actual) ? threshold.actual : 'n/a'}</td><td><span class="pill ${threshold.passed ? 'pass' : 'fail'}">${threshold.passed ? 'PASS' : 'FAIL'}</span></td></tr>`)
+    .map(
+      (threshold) =>
+        `<tr><td>${escapeHtml(threshold.metric)}</td><td>${threshold.operator === 'min' ? '≥' : '≤'} ${threshold.limit}</td><td class="num">${Number.isFinite(threshold.actual) ? threshold.actual : 'n/a'}</td><td><span class="pill ${threshold.passed ? 'pass' : 'fail'}">${threshold.passed ? 'PASS' : 'FAIL'}</span></td></tr>`,
+    )
     .join('');
 
   return `${head(report.title)}
-${header(report.title, 'Performance results', [
-  ['Target', `${report.target.method} ${report.target.url}`],
-  ['Started', report.startedAt],
-  ['Ended', report.endedAt],
-], badges)}
+${header(
+  report.title,
+  'Performance results',
+  [
+    ['Target', `${report.target.method} ${report.target.url}`],
+    ['Started', report.startedAt],
+    ['Ended', report.endedAt],
+  ],
+  badges,
+)}
 <main id="main" class="wrap">
   <section aria-labelledby="summary-heading">
     <h2 id="summary-heading">Summary</h2>
@@ -401,7 +420,13 @@ ${footer(report.tool)}
 }
 
 function severityClass(finding: SecurityFinding): string {
-  return finding.status === 'fail' ? 'fail' : finding.status === 'warn' ? 'warn' : finding.status === 'pass' ? 'pass' : 'info';
+  return finding.status === 'fail'
+    ? 'fail'
+    : finding.status === 'warn'
+      ? 'warn'
+      : finding.status === 'pass'
+        ? 'pass'
+        : 'info';
 }
 
 export function renderSecurityHtml(report: SecurityReport): string {
@@ -429,11 +454,16 @@ export function renderSecurityHtml(report: SecurityReport): string {
     .join('');
 
   return `${head(report.title)}
-${header(report.title, 'Security analysis', [
-  ['Target', report.target],
-  ['Started', report.startedAt],
-  ['Threshold', `${report.threshold} and above`],
-], badges)}
+${header(
+  report.title,
+  'Security analysis',
+  [
+    ['Target', report.target],
+    ['Started', report.startedAt],
+    ['Threshold', `${report.threshold} and above`],
+  ],
+  badges,
+)}
 <main id="main" class="wrap">
   <section aria-labelledby="score-heading">
     <h2 id="score-heading">Security score</h2>
@@ -473,7 +503,15 @@ export function renderContractHtml(report: ContractReport): string {
     .join('');
 
   return `${head(report.title)}
-${header(report.title, 'Contract regression check', [['Target', report.target], ['Generated', report.generatedAt]], badges)}
+${header(
+  report.title,
+  'Contract regression check',
+  [
+    ['Target', report.target],
+    ['Generated', report.generatedAt],
+  ],
+  badges,
+)}
 <main id="main" class="wrap">
   <section aria-labelledby="changes-heading">
     <h2 id="changes-heading">Shape changes</h2>

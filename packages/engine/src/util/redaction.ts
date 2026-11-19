@@ -55,7 +55,9 @@ export function redactHeaders(headers: Record<string, string>): Record<string, s
 export function redactKnownSecrets(text: string, secrets: readonly string[]): string {
   if (!text || secrets.length === 0) return text;
   // Longest first so a secret containing another is masked whole.
-  const ordered = [...new Set(secrets.filter((secret) => secret.length >= 3))].sort((a, b) => b.length - a.length);
+  const ordered = [...new Set(secrets.filter((secret) => secret.length >= 3))].sort(
+    (a, b) => b.length - a.length,
+  );
   let out = text;
   for (const secret of ordered) {
     out = out.split(secret).join(REDACTED);
@@ -67,7 +69,11 @@ export function redactKnownSecrets(text: string, secrets: readonly string[]): st
 export function redactSecretsInUrl(rawUrl: string, secrets: readonly string[]): string {
   if (secrets.length === 0) return rawUrl;
   const encoded = secrets.flatMap((secret) => {
-    const variants = [secret, encodeURIComponent(secret), new URLSearchParams({ v: secret }).toString().slice(2)];
+    const variants = [
+      secret,
+      encodeURIComponent(secret),
+      new URLSearchParams({ v: secret }).toString().slice(2),
+    ];
     return variants.filter((variant) => variant.length >= 3);
   });
   return redactKnownSecrets(rawUrl, encoded);

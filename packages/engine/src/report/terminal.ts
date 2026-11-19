@@ -69,8 +69,15 @@ function renderAssertions(
     lines.push(`    ${icon} ${assertion.expression}`);
     if (!assertion.passed) {
       if (assertion.expected !== undefined || assertion.actual !== undefined) {
-        if (typeof assertion.expected === 'string' && typeof assertion.actual === 'string' && (assertion.expected.includes('\n') || assertion.actual.includes('\n'))) {
-          const diff = unifiedDiff(assertion.expected, assertion.actual, { labelA: 'expected', labelB: 'actual' });
+        if (
+          typeof assertion.expected === 'string' &&
+          typeof assertion.actual === 'string' &&
+          (assertion.expected.includes('\n') || assertion.actual.includes('\n'))
+        ) {
+          const diff = unifiedDiff(assertion.expected, assertion.actual, {
+            labelA: 'expected',
+            labelB: 'actual',
+          });
           if (diff) lines.push(...diff.split('\n').map((line) => formatDiffLine(palette, line)));
         }
       }
@@ -85,7 +92,9 @@ function renderAssertions(
     }
   }
   if (!options.verbose && result.assertions.length > failing.length && failing.length > 0) {
-    lines.push(palette.dim(`    … ${result.assertions.length - failing.length} more assertion(s) passed`));
+    lines.push(
+      palette.dim(`    … ${result.assertions.length - failing.length} more assertion(s) passed`),
+    );
   }
   return lines;
 }
@@ -97,12 +106,19 @@ function formatDiffLine(palette: Palette, line: string): string {
   return palette.dim(`      ${line}`);
 }
 
-function renderTestResult(palette: Palette, result: TestCaseResult, options: TerminalRenderOptions): string[] {
+function renderTestResult(
+  palette: Palette,
+  result: TestCaseResult,
+  options: TerminalRenderOptions,
+): string[] {
   const lines: string[] = [];
   const duration = palette.gray(`(${formatDuration(result.durationMs)})`);
-  const rowSuffix = result.dataRow !== undefined ? palette.gray(` [data row ${result.dataRow + 1}]`) : '';
+  const rowSuffix =
+    result.dataRow !== undefined ? palette.gray(` [data row ${result.dataRow + 1}]`) : '';
   const idSuffix = result.id ? palette.gray(` [${result.id}]`) : '';
-  lines.push(`  ${statusBadge(palette, result.status)} ${result.name}${idSuffix}${rowSuffix} ${duration}`);
+  lines.push(
+    `  ${statusBadge(palette, result.status)} ${result.name}${idSuffix}${rowSuffix} ${duration}`,
+  );
 
   if (result.status === 'skipped') {
     lines.push(palette.yellow(`      ${result.skipReason ?? 'skipped'}`));
@@ -118,11 +134,16 @@ function renderTestResult(palette: Palette, result: TestCaseResult, options: Ter
     const summary = `${result.request.method} ${truncate(result.request.url, Math.max(40, (options.width ?? 100) - 40))} → ${response.status} ${response.statusText} · ${formatBytes(response.sizeBytes)}`;
     lines.push(palette.gray(`      ${summary}`));
     if (response.redirects.length > 0) {
-      lines.push(palette.gray(`      redirects: ${response.redirects.map((hop) => `${hop.status} → ${hop.location}`).join(' → ')}`));
+      lines.push(
+        palette.gray(
+          `      redirects: ${response.redirects.map((hop) => `${hop.status} → ${hop.location}`).join(' → ')}`,
+        ),
+      );
     }
     if (response.bodyTruncated) lines.push(palette.gray('      body preview truncated'));
     if (options.showBodies && response.bodyPreview) {
-      for (const line of response.bodyPreview.split('\n').slice(0, 40)) lines.push(palette.dim(`      │ ${line}`));
+      for (const line of response.bodyPreview.split('\n').slice(0, 40))
+        lines.push(palette.dim(`      │ ${line}`));
     }
   }
 
@@ -130,7 +151,11 @@ function renderTestResult(palette: Palette, result: TestCaseResult, options: Ter
   return lines;
 }
 
-export function renderSuite(palette: Palette, suite: SuiteRun, options: TerminalRenderOptions = {}): string {
+export function renderSuite(
+  palette: Palette,
+  suite: SuiteRun,
+  options: TerminalRenderOptions = {},
+): string {
   const lines: string[] = [];
   const heading = palette.bold(palette.cyan(`▸ ${suite.suite}`));
   const meta = palette.gray(
@@ -143,16 +168,24 @@ export function renderSuite(palette: Palette, suite: SuiteRun, options: Terminal
   lines.push('', heading, meta);
   if (suite.description) lines.push(palette.dim(suite.description));
 
-  const failing = suite.results.filter((result) => result.status !== 'passed' && result.status !== 'skipped');
+  const failing = suite.results.filter(
+    (result) => result.status !== 'passed' && result.status !== 'skipped',
+  );
   const passing = suite.results.filter((result) => result.status === 'passed');
   for (const result of failing) lines.push(...renderTestResult(palette, result, options));
   if (options.verbose) {
     for (const result of passing) lines.push(...renderTestResult(palette, result, options));
   } else if (passing.length > 0) {
-    lines.push(palette.gray(`  ✓ ${passing.length} test(s) passed${failing.length > 0 ? ' (use --verbose to list them)' : ''}`));
+    lines.push(
+      palette.gray(
+        `  ✓ ${passing.length} test(s) passed${failing.length > 0 ? ' (use --verbose to list them)' : ''}`,
+      ),
+    );
     for (const result of passing) {
       const duration = palette.gray(`(${formatDuration(result.durationMs)})`);
-      lines.push(`  ${palette.green('✓')} ${result.name}${result.id ? palette.gray(` [${result.id}]`) : ''} ${duration}`);
+      lines.push(
+        `  ${palette.green('✓')} ${result.name}${result.id ? palette.gray(` [${result.id}]`) : ''} ${duration}`,
+      );
     }
   }
   const skipped = suite.results.filter((result) => result.status === 'skipped');
@@ -184,20 +217,31 @@ export function renderTestReport(report: TestReport, options: TerminalRenderOpti
   if (thresholdLines.length > 0) lines.push('', ...thresholdLines.map((line) => `  ${line}`));
   lines.push(
     '',
-    report.passed ? palette.green(palette.bold('✔ All checks passed')) : palette.red(palette.bold('✖ Some checks failed')),
+    report.passed
+      ? palette.green(palette.bold('✔ All checks passed'))
+      : palette.red(palette.bold('✖ Some checks failed')),
   );
   return lines.join('\n');
 }
 
-export function renderPerformanceReport(report: PerformanceReport, options: TerminalRenderOptions = {}): string {
+export function renderPerformanceReport(
+  report: PerformanceReport,
+  options: TerminalRenderOptions = {},
+): string {
   const palette = createPalette(options.color ?? true);
   const { stats } = report;
   const lines: string[] = [];
-  lines.push('', palette.bold(palette.cyan('▸ Performance results')), palette.gray(`${report.target.method} ${report.target.url}`));
+  lines.push(
+    '',
+    palette.bold(palette.cyan('▸ Performance results')),
+    palette.gray(`${report.target.method} ${report.target.url}`),
+  );
   lines.push(
     palette.gray(
       `concurrency ${report.config.concurrency} · ${
-        report.config.durationSeconds ? `${report.config.durationSeconds}s` : `${report.config.maxRequests ?? 0} requests`
+        report.config.durationSeconds
+          ? `${report.config.durationSeconds}s`
+          : `${report.config.maxRequests ?? 0} requests`
       } · timeout ${report.config.timeoutMs}ms${report.config.thinkTimeMs ? ` · think time ${report.config.thinkTimeMs}ms` : ''}`,
     ),
   );
@@ -219,9 +263,17 @@ export function renderPerformanceReport(report: PerformanceReport, options: Term
     ['Latency max', `${stats.latency.max}ms`],
     ['Std. deviation', `${stats.latency.stddev}ms`],
   ];
-  lines.push('', renderTable(['Metric', 'Value'], rows).split('\n').map((line) => `  ${line}`).join('\n'));
+  lines.push(
+    '',
+    renderTable(['Metric', 'Value'], rows)
+      .split('\n')
+      .map((line) => `  ${line}`)
+      .join('\n'),
+  );
 
-  const statuses = Object.entries(stats.statusDistribution).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+  const statuses = Object.entries(stats.statusDistribution).sort(([a], [b]) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
   if (statuses.length > 0) {
     lines.push('', palette.bold('Status distribution'));
     for (const [status, count] of statuses) {
@@ -249,11 +301,15 @@ export function renderPerformanceReport(report: PerformanceReport, options: Term
   return lines.join('\n');
 }
 
-export function renderSecurityReport(report: SecurityReport, options: TerminalRenderOptions = {}): string {
+export function renderSecurityReport(
+  report: SecurityReport,
+  options: TerminalRenderOptions = {},
+): string {
   const palette = createPalette(options.color ?? true);
   const lines: string[] = [];
   lines.push('', palette.bold(palette.cyan('▸ Security analysis')), palette.gray(report.target));
-  const scoreColor = report.score >= 80 ? palette.green : report.score >= 50 ? palette.yellow : palette.red;
+  const scoreColor =
+    report.score >= 80 ? palette.green : report.score >= 50 ? palette.yellow : palette.red;
   lines.push(
     palette.gray(
       `score ${scoreColor(String(report.score))}/100 · ${report.counts.fail} fail · ${report.counts.warn} warn · ${report.counts.pass} pass · ${report.counts.info} info${
@@ -263,7 +319,16 @@ export function renderSecurityReport(report: SecurityReport, options: TerminalRe
   );
 
   const order = (finding: SecurityFinding): number => {
-    const statusRank = finding.status === 'fail' ? 0 : finding.status === 'warn' ? 1 : finding.status === 'info' ? 2 : finding.status === 'pass' ? 3 : 4;
+    const statusRank =
+      finding.status === 'fail'
+        ? 0
+        : finding.status === 'warn'
+          ? 1
+          : finding.status === 'info'
+            ? 2
+            : finding.status === 'pass'
+              ? 3
+              : 4;
     return statusRank * 10 + SEVERITY_ORDER.indexOf(finding.severity);
   };
   const visible = options.verbose
@@ -286,11 +351,15 @@ export function renderSecurityReport(report: SecurityReport, options: TerminalRe
             : finding.status === 'skipped'
               ? palette.gray('SKIP')
               : palette.blue('INFO');
-    lines.push('', `  ${badge} ${color(`[${finding.severity.toUpperCase()}]`)} ${palette.bold(finding.title)} ${palette.gray(`(${finding.category})`)}`);
+    lines.push(
+      '',
+      `  ${badge} ${color(`[${finding.severity.toUpperCase()}]`)} ${palette.bold(finding.title)} ${palette.gray(`(${finding.category})`)}`,
+    );
     lines.push(palette.dim(`    ${finding.description}`));
     if (options.verbose || finding.status === 'fail' || finding.status === 'warn') {
       if (finding.evidence) {
-        for (const line of finding.evidence.split('\n').slice(0, 6)) lines.push(palette.gray(`      evidence: ${line}`));
+        for (const line of finding.evidence.split('\n').slice(0, 6))
+          lines.push(palette.gray(`      evidence: ${line}`));
       }
       lines.push(palette.gray(`      remediation: ${finding.remediation}`));
     }
@@ -300,17 +369,26 @@ export function renderSecurityReport(report: SecurityReport, options: TerminalRe
     '',
     report.passed
       ? palette.green(palette.bold(`✔ No findings at or above "${report.threshold}" severity`))
-      : palette.red(palette.bold(`✖ Findings at or above "${report.threshold}" severity require attention`)),
+      : palette.red(
+          palette.bold(`✖ Findings at or above "${report.threshold}" severity require attention`),
+        ),
   );
   return lines.join('\n');
 }
 
-export function renderContractReport(report: ContractReport, options: TerminalRenderOptions = {}): string {
+export function renderContractReport(
+  report: ContractReport,
+  options: TerminalRenderOptions = {},
+): string {
   const palette = createPalette(options.color ?? true);
   const lines: string[] = [];
   lines.push('', palette.bold(palette.cyan('▸ Contract check')), palette.gray(report.target));
   if (report.snapshotUpdated) {
-    lines.push(palette.blue(`  Snapshot ${report.baselineFile ? 'written' : 'created'}${report.baselineFile ? `: ${report.baselineFile}` : ''}`));
+    lines.push(
+      palette.blue(
+        `  Snapshot ${report.baselineFile ? 'written' : 'created'}${report.baselineFile ? `: ${report.baselineFile}` : ''}`,
+      ),
+    );
   }
   if (report.changes.length === 0) {
     lines.push(palette.green('  ✔ Response shape matches the baseline'));
@@ -325,15 +403,18 @@ export function renderContractReport(report: ContractReport, options: TerminalRe
     }
   }
   if (report.schemaValidation) {
-    if (report.schemaValidation.valid) lines.push(palette.green('  ✔ Response validates against the provided schema'));
+    if (report.schemaValidation.valid)
+      lines.push(palette.green('  ✔ Response validates against the provided schema'));
     else {
       lines.push(palette.red('  ✖ Response does not validate against the provided schema'));
-      for (const error of report.schemaValidation.errors.slice(0, 10)) lines.push(palette.gray(`    • ${error}`));
+      for (const error of report.schemaValidation.errors.slice(0, 10))
+        lines.push(palette.gray(`    • ${error}`));
     }
   }
   if (options.verbose && report.response) {
     lines.push('', palette.bold('  Response preview'));
-    for (const line of report.response.bodyPreview.split('\n').slice(0, 40)) lines.push(palette.dim(`  │ ${line}`));
+    for (const line of report.response.bodyPreview.split('\n').slice(0, 40))
+      lines.push(palette.dim(`  │ ${line}`));
   }
   lines.push(
     '',

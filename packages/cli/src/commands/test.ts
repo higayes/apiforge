@@ -1,4 +1,5 @@
 import type { Command } from 'commander';
+import { dirname } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import {
   buildTestReport,
@@ -14,9 +15,16 @@ import {
 import { EXIT_CHECKS_FAILED, EXIT_CONFIG, EXIT_INTERRUPTED, EXIT_SUCCESS } from '../exit-codes.js';
 import { createUiFromCommand } from '../lib/context.js';
 import { openProject } from '../lib/project.js';
-import { parseHeaders, parseKeyValuePairs, parseTimeout, resolveEnvironment } from '../lib/inputs.js';
+import {
+  parseHeaders,
+  parseKeyValuePairs,
+  parseTimeout,
+  resolveEnvironment,
+} from '../lib/inputs.js';
 import { emitReport, parseFormats } from '../lib/output.js';
 import { installCancellation } from '../signals.js';
+import { formatCliError } from '../errors.js';
+import { ConfigError } from '@apiforge/engine';
 import { TOOL_INFO } from '../lib/version.js';
 
 interface TestCommandOptions {
@@ -82,10 +90,18 @@ export function registerTestCommand(program: Command): void {
         try {
           const project = await openProject(process.cwd(), paths);
           if (project.suites.length === 0) {
-            ui.fail('No test suites were found.');
-            ui.line(
-              ui.palette.gray('  Create one with `apiforge init`, or pass a suite file: apiforge test path/to/suite.yaml'),
+            ui.error(
+              formatCliError(new ConfigError('No test suites were found'), ui, {
+                json: options.json === true,
+              }),
             );
+            if (options.json !== true) {
+              ui.error(
+                ui.palette.gray(
+                  '  Create one with `apiforge init`, or pass a suite file: apiforge test path/to/suite.yaml',
+                ),
+              );
+            }
             process.exitCode = EXIT_CONFIG;
             return;
           }
@@ -134,9 +150,10 @@ export function registerTestCommand(program: Command): void {
                 ...(timeoutMs !== undefined ? { timeoutMs } : {}),
                 ...(options.insecure === true ? { insecureTLS: true } : {}),
                 signal: cancellation.signal,
-                baseDir: project.root,
+                suiteDir: dirname(loaded.file),
                 shouldStop: (result: TestCaseResult) =>
-                  options.bail === true && (result.status === 'failed' || result.status === 'error'),
+                  options.bail === true &&
+                  (result.status === 'failed' || result.status === 'error'),
                 onTestFinished: (result: TestCaseResult) => {
                   finished += 1;
                   const icon =
@@ -180,7 +197,12 @@ export function registerTestCommand(program: Command): void {
 
           if (!options.json) {
             ui.line();
-            ui.block(renderTestReport(report, { color: ui.palette.enabled, verbose: options.verbose === true }));
+            ui.block(
+              renderTestReport(report, {
+                color: ui.palette.enabled,
+                verbose: options.verbose === true,
+              }),
+            );
           }
 
           const outDirOption = options.out
@@ -195,7 +217,8 @@ export function registerTestCommand(program: Command): void {
             ...outDirOption,
             json: options.json === true,
             suppressTerminal: true,
-            renderTerminal: () => renderTestReport(report, { color: false, verbose: options.verbose === true }),
+            renderTerminal: () =>
+              renderTestReport(report, { color: false, verbose: options.verbose === true }),
             writeLatest: true,
           });
 

@@ -1,0 +1,31 @@
+# APIFORGE project configuration for the example project.
+# Every command reads this file; CLI flags override it.
+name: APIFORGE demo API
+
+defaultEnvironment: local
+
+reports:
+  formats: [terminal, json, html, junit]
+  outDir: reports
+
+defaults:
+  timeoutMs: 5000
+  retries: 0
+
+performance:
+  concurrency: 5
+  durationSeconds: 5
+  timeoutMs: 10000
+
+security:
+  threshold: high
+
+# Test-level thresholds are evaluated after every run; they make CI fail on
+# regressions in pass rate or latency instead of only on hard assertion errors.
+thresholds:
+  - metric: successRate
+    min: 100
+    description: Every test must pass
+  - metric: p95
+    max: 2000
+    description: 95% of requests must finish within 2s

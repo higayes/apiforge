@@ -41,7 +41,9 @@ export function parsePath(path: string): Segment[] {
       const inner = input.slice(i + 1, close).trim();
       i = close + 1;
       if (inner === '') throw new Error(`Empty brackets in path "${path}"`);
-      const quoted = (inner.startsWith('"') && inner.endsWith('"')) || (inner.startsWith("'") && inner.endsWith("'"));
+      const quoted =
+        (inner.startsWith('"') && inner.endsWith('"')) ||
+        (inner.startsWith("'") && inner.endsWith("'"));
       if (quoted) {
         segments.push(inner.slice(1, -1));
       } else if (/^-?\d+$/.test(inner)) {
@@ -77,7 +79,8 @@ export function getPath(root: unknown, path: string): PathResult {
       if (segment < 0 || segment >= current.length) return { found: false, value: undefined };
       current = current[segment];
     } else {
-      if (current === null || typeof current !== 'object') return { found: false, value: undefined };
+      if (current === null || typeof current !== 'object')
+        return { found: false, value: undefined };
       if (Array.isArray(current)) {
         // Allow numeric string segments on arrays for convenience: items.0.id
         if (/^\d+$/.test(segment)) {

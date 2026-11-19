@@ -12,7 +12,17 @@ import {
 
 describe('isSensitiveKey', () => {
   it('flags common secret-bearing names', () => {
-    for (const key of ['authorization', 'Authorization', 'x-api-key', 'apiKey', 'access_token', 'password', 'client_secret', 'set-cookie', 'Cookie']) {
+    for (const key of [
+      'authorization',
+      'Authorization',
+      'x-api-key',
+      'apiKey',
+      'access_token',
+      'password',
+      'client_secret',
+      'set-cookie',
+      'Cookie',
+    ]) {
       expect(isSensitiveKey(key), key).toBe(true);
     }
   });
@@ -38,14 +48,24 @@ describe('maskHeaderValue', () => {
 
 describe('redactHeaders', () => {
   it('masks only sensitive headers', () => {
-    const result = redactHeaders({ Authorization: 'Bearer t', 'content-type': 'application/json', Cookie: 'a=b' });
-    expect(result).toEqual({ Authorization: `Bearer ${REDACTED}`, 'content-type': 'application/json', Cookie: REDACTED });
+    const result = redactHeaders({
+      Authorization: 'Bearer t',
+      'content-type': 'application/json',
+      Cookie: 'a=b',
+    });
+    expect(result).toEqual({
+      Authorization: `Bearer ${REDACTED}`,
+      'content-type': 'application/json',
+      Cookie: REDACTED,
+    });
   });
 });
 
 describe('redactUrl', () => {
   it('masks sensitive query parameters', () => {
-    expect(redactUrl('https://api.example.com/x?token=abc&page=2')).toBe('https://api.example.com/x?token=%5BREDACTED%5D&page=2');
+    expect(redactUrl('https://api.example.com/x?token=abc&page=2')).toBe(
+      'https://api.example.com/x?token=%5BREDACTED%5D&page=2',
+    );
   });
 
   it('masks userinfo credentials', () => {
@@ -61,7 +81,10 @@ describe('redactUrl', () => {
 
 describe('redactUnknown', () => {
   it('recursively masks sensitive properties', () => {
-    const input = { user: { name: 'Ada', password: 'pw', tokens: { accessToken: 'abc' } }, list: [{ secret: 's' }] };
+    const input = {
+      user: { name: 'Ada', password: 'pw', tokens: { accessToken: 'abc' } },
+      list: [{ secret: 's' }],
+    };
     expect(redactUnknown(input)).toEqual({
       user: { name: 'Ada', password: REDACTED, tokens: { accessToken: REDACTED } },
       list: [{ secret: REDACTED }],
@@ -71,7 +94,9 @@ describe('redactUnknown', () => {
 
 describe('redactBodyText', () => {
   it('masks JSON body fields structurally', () => {
-    expect(redactBodyText('{"token":"abc","name":"x"}')).toBe(JSON.stringify({ token: REDACTED, name: 'x' }, null, 2));
+    expect(redactBodyText('{"token":"abc","name":"x"}')).toBe(
+      JSON.stringify({ token: REDACTED, name: 'x' }, null, 2),
+    );
   });
 
   it('masks key=value pairs in plain text', () => {

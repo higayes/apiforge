@@ -62,7 +62,11 @@ describe('executeRequest — methods', () => {
   });
 
   it('does not send a body on GET even if one is configured', async () => {
-    await executeRequest({ method: 'GET', url: `${server.url}/echo`, body: { json: { nope: true } } });
+    await executeRequest({
+      method: 'GET',
+      url: `${server.url}/echo`,
+      body: { json: { nope: true } },
+    });
     expect(server.requests.at(-1)?.body).toBe('');
   });
 });
@@ -81,7 +85,11 @@ describe('executeRequest — query, headers, cookies, auth', () => {
   });
 
   it('sends merged query parameters from the URL and options', async () => {
-    await executeRequest({ method: 'GET', url: `${server.url}/echo?existing=1`, query: { added: '2' } });
+    await executeRequest({
+      method: 'GET',
+      url: `${server.url}/echo?existing=1`,
+      query: { added: '2' },
+    });
     const url = new URL(server.requests.at(-1)?.url ?? '/', 'http://localhost');
     expect(url.searchParams.get('existing')).toBe('1');
     expect(url.searchParams.get('added')).toBe('2');
@@ -148,14 +156,22 @@ describe('executeRequest — query, headers, cookies, auth', () => {
 
 describe('executeRequest — bodies', () => {
   it('sends JSON bodies with a content type', async () => {
-    await executeRequest({ method: 'POST', url: `${server.url}/echo`, body: { json: { name: 'Ada', age: 36 } } });
+    await executeRequest({
+      method: 'POST',
+      url: `${server.url}/echo`,
+      body: { json: { name: 'Ada', age: 36 } },
+    });
     const request = server.requests.at(-1);
     expect(request?.headers['content-type']).toBe('application/json');
     expect(JSON.parse(request?.body ?? '{}')).toEqual({ name: 'Ada', age: 36 });
   });
 
   it('sends text bodies without forcing a content type', async () => {
-    await executeRequest({ method: 'POST', url: `${server.url}/echo`, body: { text: 'plain payload' } });
+    await executeRequest({
+      method: 'POST',
+      url: `${server.url}/echo`,
+      body: { text: 'plain payload' },
+    });
     expect(server.requests.at(-1)?.body).toBe('plain payload');
   });
 
@@ -183,7 +199,9 @@ describe('executeRequest — bodies', () => {
     const request = server.requests.at(-1);
     expect(request?.headers['content-type']).toBe('application/vnd.api+json');
     // No duplicate header casing variants.
-    expect(Object.keys(request?.headers ?? {}).filter((key) => key.toLowerCase() === 'content-type')).toHaveLength(1);
+    expect(
+      Object.keys(request?.headers ?? {}).filter((key) => key.toLowerCase() === 'content-type'),
+    ).toHaveLength(1);
   });
 });
 
@@ -209,14 +227,22 @@ describe('executeRequest — response handling', () => {
   });
 
   it('truncates large bodies but records the real size', async () => {
-    const response = await executeRequest({ method: 'GET', url: `${server.url}/large`, maxBodyBytes: 2048 });
+    const response = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/large`,
+      maxBodyBytes: 2048,
+    });
     expect(response.bodyTruncated).toBe(true);
     expect(response.text.length).toBeLessThanOrEqual(2048);
     expect(response.bodyBytes).toBeGreaterThanOrEqual(2048);
   });
 
   it('decodes gzip responses', async () => {
-    const response = await executeRequest({ method: 'GET', url: `${server.url}/gzip`, headers: { 'accept-encoding': 'gzip' } });
+    const response = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/gzip`,
+      headers: { 'accept-encoding': 'gzip' },
+    });
     expect(response.json).toEqual({ compressed: true });
   });
 
@@ -245,7 +271,11 @@ describe('executeRequest — redirects', () => {
   });
 
   it('does not follow redirects when disabled', async () => {
-    const response = await executeRequest({ method: 'GET', url: `${server.url}/redirect`, followRedirects: false });
+    const response = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/redirect`,
+      followRedirects: false,
+    });
     expect(response.status).toBe(302);
     expect(response.redirects).toEqual([]);
     expect(response.headers.location).toBe('/json');
@@ -260,7 +290,11 @@ describe('executeRequest — redirects', () => {
 
 describe('executeRequest — failures and cancellation', () => {
   it('times out with a RequestError of kind "timeout"', async () => {
-    const error = await executeRequest({ method: 'GET', url: `${server.url}/delay/1s`, timeoutMs: 100 }).catch((caught) => caught);
+    const error = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/delay/1s`,
+      timeoutMs: 100,
+    }).catch((caught) => caught);
     expect(error).toBeInstanceOf(RequestError);
     expect((error as RequestError).kind).toBe('timeout');
     expect((error as RequestError).message).toContain('timed out');
@@ -269,20 +303,30 @@ describe('executeRequest — failures and cancellation', () => {
 
   it('reports connection failures as network errors', async () => {
     const port = await getClosedPort();
-    const error = await executeRequest({ method: 'GET', url: `http://127.0.0.1:${port}/` }).catch((caught) => caught);
+    const error = await executeRequest({ method: 'GET', url: `http://127.0.0.1:${port}/` }).catch(
+      (caught) => caught,
+    );
     expect(error).toBeInstanceOf(RequestError);
     expect((error as RequestError).kind).toBe('network');
     expect((error as RequestError).code).toBe('NETWORK');
   });
 
   it('rejects unsupported protocols', async () => {
-    await expect(executeRequest({ method: 'GET', url: 'ftp://example.com/x' })).rejects.toThrow(/Unsupported protocol/);
-    await expect(executeRequest({ method: 'GET', url: 'not a url' })).rejects.toThrow(/Invalid URL/);
+    await expect(executeRequest({ method: 'GET', url: 'ftp://example.com/x' })).rejects.toThrow(
+      /Unsupported protocol/,
+    );
+    await expect(executeRequest({ method: 'GET', url: 'not a url' })).rejects.toThrow(
+      /Invalid URL/,
+    );
   });
 
   it('honours AbortSignal cancellation', async () => {
     const controller = new AbortController();
-    const promise = executeRequest({ method: 'GET', url: `${server.url}/delay/1s`, signal: controller.signal });
+    const promise = executeRequest({
+      method: 'GET',
+      url: `${server.url}/delay/1s`,
+      signal: controller.signal,
+    });
     setTimeout(() => controller.abort(), 50);
     const error = await promise.catch((caught) => caught);
     expect(error).toBeInstanceOf(RequestError);
@@ -294,9 +338,9 @@ describe('executeRequest — failures and cancellation', () => {
     const controller = new AbortController();
     controller.abort();
     const before = server.requests.length;
-    await expect(executeRequest({ method: 'GET', url: `${server.url}/json`, signal: controller.signal })).rejects.toThrow(
-      /cancelled/i,
-    );
+    await expect(
+      executeRequest({ method: 'GET', url: `${server.url}/json`, signal: controller.signal }),
+    ).rejects.toThrow(/cancelled/i);
     expect(server.requests.length).toBe(before);
   });
 });
@@ -314,13 +358,23 @@ describe('executeRequest — retries', () => {
   });
 
   it('returns the last transient failure when retries are exhausted', async () => {
-    const response = await executeRequest({ method: 'GET', url: `${server.url}/flaky`, retries: 1, retryDelayMs: 5 });
+    const response = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/flaky`,
+      retries: 1,
+      retryDelayMs: 5,
+    });
     expect(response.status).toBe(503);
     expect(response.attempts).toBe(2);
   });
 
   it('does not retry client errors', async () => {
-    const response = await executeRequest({ method: 'GET', url: `${server.url}/status/404`, retries: 5, retryDelayMs: 5 });
+    const response = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/status/404`,
+      retries: 5,
+      retryDelayMs: 5,
+    });
     expect(response.status).toBe(404);
     expect(response.attempts).toBe(1);
   });

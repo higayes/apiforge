@@ -31,7 +31,10 @@ export interface KeyValuePair {
  * comma-separated list (`--var a=1,b=2`). Values may contain `=` and commas
  * when quoted by the shell as separate arguments.
  */
-export function parseKeyValuePairs(entries: string[] | undefined, flagName: string): Record<string, string> {
+export function parseKeyValuePairs(
+  entries: string[] | undefined,
+  flagName: string,
+): Record<string, string> {
   const out: Record<string, string> = {};
   if (!entries) return out;
   for (const entry of entries) {
@@ -40,7 +43,9 @@ export function parseKeyValuePairs(entries: string[] | undefined, flagName: stri
     }
     const separator = entry.indexOf('=');
     if (separator <= 0) {
-      throw new UsageError(`Invalid ${flagName} value "${entry}"`, [`Expected the form ${flagName === '--var' ? 'key=value' : 'NAME=value'}`]);
+      throw new UsageError(`Invalid ${flagName} value "${entry}"`, [
+        `Expected the form ${flagName === '--var' ? 'key=value' : 'NAME=value'}`,
+      ]);
     }
     const key = entry.slice(0, separator).trim();
     const value = entry.slice(separator + 1);
@@ -54,11 +59,16 @@ export function parseHeaders(entries: string[] | undefined): Record<string, stri
   return parseKeyValuePairs(entries, '--header');
 }
 
-export function parseTimeout(value: string | undefined, flagName = '--timeout'): number | undefined {
+export function parseTimeout(
+  value: string | undefined,
+  flagName = '--timeout',
+): number | undefined {
   if (value === undefined) return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 600_000) {
-    throw new UsageError(`Invalid ${flagName} value "${value}"`, ['Expected a positive number of milliseconds (max 600000).']);
+    throw new UsageError(`Invalid ${flagName} value "${value}"`, [
+      'Expected a positive number of milliseconds (max 600000).',
+    ]);
   }
   return Math.round(parsed);
 }
@@ -72,7 +82,9 @@ export function parseIntInRange(
   if (value === undefined) return undefined;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
-    throw new UsageError(`Invalid ${flagName} value "${value}"`, [`Expected an integer between ${min} and ${max}.`]);
+    throw new UsageError(`Invalid ${flagName} value "${value}"`, [
+      `Expected an integer between ${min} and ${max}.`,
+    ]);
   }
   return parsed;
 }
@@ -86,7 +98,9 @@ export function parseNumberInRange(
   if (value === undefined) return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
-    throw new UsageError(`Invalid ${flagName} value "${value}"`, [`Expected a number between ${min} and ${max}.`]);
+    throw new UsageError(`Invalid ${flagName} value "${value}"`, [
+      `Expected a number between ${min} and ${max}.`,
+    ]);
   }
   return parsed;
 }
@@ -96,10 +110,14 @@ export function assertHttpUrl(rawUrl: string, flagName = 'target'): string {
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new UsageError(`Invalid ${flagName} URL "${rawUrl}"`, ['Provide a full URL such as https://api.example.com/health']);
+    throw new UsageError(`Invalid ${flagName} URL "${rawUrl}"`, [
+      'Provide a full URL such as https://api.example.com/health',
+    ]);
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new UsageError(`Unsupported protocol "${url.protocol}" in ${flagName}`, ['Only http:// and https:// URLs are supported.']);
+    throw new UsageError(`Unsupported protocol "${url.protocol}" in ${flagName}`, [
+      'Only http:// and https:// URLs are supported.',
+    ]);
   }
   return url.toString();
 }
@@ -118,7 +136,9 @@ export async function readJsonFileInput<T>(path: string, label: string): Promise
   try {
     return JSON.parse(content) as T;
   } catch (error) {
-    throw new ConfigError(`${label} is not valid JSON: ${path}`, [String((error as Error).message)]);
+    throw new ConfigError(`${label} is not valid JSON: ${path}`, [
+      String((error as Error).message),
+    ]);
   }
 }
 
@@ -146,7 +166,11 @@ export interface BodyInputOptions {
 
 /** Build a `BodyDefinition` from `--body`, `--body-file` and `--form` flags. */
 export async function resolveBody(options: BodyInputOptions): Promise<BodyDefinition | undefined> {
-  const provided = [options.body !== undefined, options.bodyFile !== undefined, (options.form?.length ?? 0) > 0].filter(Boolean);
+  const provided = [
+    options.body !== undefined,
+    options.bodyFile !== undefined,
+    (options.form?.length ?? 0) > 0,
+  ].filter(Boolean);
   if (provided.length > 1) {
     throw new UsageError('Only one of --body, --body-file and --form may be used');
   }
@@ -161,13 +185,17 @@ export async function resolveBody(options: BodyInputOptions): Promise<BodyDefini
     } catch (error) {
       const code = (error as { code?: string }).code;
       if (code === 'ENOENT') throw new ConfigError(`Body file not found: ${options.bodyFile}`);
-      throw new ConfigError(`Could not read body file: ${options.bodyFile}`, [String((error as Error).message)]);
+      throw new ConfigError(`Could not read body file: ${options.bodyFile}`, [
+        String((error as Error).message),
+      ]);
     }
     if (options.json || absolute.endsWith('.json')) {
       try {
         return { json: JSON.parse(content) as unknown };
       } catch (error) {
-        throw new ConfigError(`Body file is not valid JSON: ${options.bodyFile}`, [String((error as Error).message)]);
+        throw new ConfigError(`Body file is not valid JSON: ${options.bodyFile}`, [
+          String((error as Error).message),
+        ]);
       }
     }
     return { text: content };
@@ -177,7 +205,9 @@ export async function resolveBody(options: BodyInputOptions): Promise<BodyDefini
       try {
         return { json: JSON.parse(options.body) as unknown };
       } catch (error) {
-        throw new UsageError(`--body is not valid JSON: ${(error as Error).message}`, ['Remove --json to send the body as plain text.']);
+        throw new UsageError(`--body is not valid JSON: ${(error as Error).message}`, [
+          'Remove --json to send the body as plain text.',
+        ]);
       }
     }
     // Auto-detect JSON objects/arrays so `--body '{"a":1}'` just works.
@@ -235,7 +265,10 @@ export function testFromFlags(input: {
     url: input.url,
     ...(input.headers && Object.keys(input.headers).length > 0 ? { headers: input.headers } : {}),
     ...(input.body ? { body: input.body } : {}),
-    expect: input.expectStatus !== undefined ? { status: input.expectStatus } : { status: { min: 200, max: 299 } },
+    expect:
+      input.expectStatus !== undefined
+        ? { status: input.expectStatus }
+        : { status: { min: 200, max: 299 } },
   };
 }
 
@@ -251,6 +284,9 @@ export function parseContractSpecDocument(document: unknown, context: string): C
   return parseContractDocument(document, context);
 }
 
-export function parseProjectConfigDocument(document: unknown, context: string): ReturnType<typeof parseProjectDocument> {
+export function parseProjectConfigDocument(
+  document: unknown,
+  context: string,
+): ReturnType<typeof parseProjectDocument> {
   return parseProjectDocument(document, context);
 }

@@ -47,12 +47,15 @@ function testCaseXml(result: TestCaseResult, className: string): string {
   }
   if (result.status === 'error') {
     return `${openTag}>\n      <error message="${escapeXml(result.error ?? 'Request error')}" type="RequestError"/>${
-      result.response ? `\n      <system-out>${escapeXml(result.response.bodyPreview)}</system-out>` : ''
+      result.response
+        ? `\n      <system-out>${escapeXml(result.response.bodyPreview)}</system-out>`
+        : ''
     }\n    </testcase>`;
   }
   if (result.status === 'failed') {
     const failing = result.assertions.filter((assertion) => !assertion.passed);
-    const message = failing.map((assertion) => assertion.expression).join('; ') || 'Assertion failed';
+    const message =
+      failing.map((assertion) => assertion.expression).join('; ') || 'Assertion failed';
     const body = escapeXml(failureDetail(result));
     return `${openTag}>\n      <failure message="${escapeXml(message)}" type="AssertionError">${body}</failure>\n    </testcase>`;
   }
@@ -74,7 +77,10 @@ export function renderJUnit(report: TestReport): string {
     lines.push(
       `  <testsuite name="${escapeXml(suite.suite)}" tests="${suite.totals.total}" failures="${suite.totals.failed}" errors="${suite.totals.errored}" skipped="${suite.totals.skipped}" time="${(suite.durationMs / 1000).toFixed(4)}">`,
     );
-    if (suite.description) lines.push(`    <properties><property name="description" value="${escapeXml(suite.description)}"/></properties>`);
+    if (suite.description)
+      lines.push(
+        `    <properties><property name="description" value="${escapeXml(suite.description)}"/></properties>`,
+      );
     for (const result of suite.results) lines.push(testCaseXml(result, suite.suite));
     lines.push('  </testsuite>');
   }

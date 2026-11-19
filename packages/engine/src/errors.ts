@@ -32,7 +32,9 @@ export class ApiForgeError extends Error {
 
   /** Single-line, user-facing description including details. */
   toUserMessage(): string {
-    return this.details.length === 0 ? this.message : `${this.message}\n  - ${this.details.join('\n  - ')}`;
+    return this.details.length === 0
+      ? this.message
+      : `${this.message}\n  - ${this.details.join('\n  - ')}`;
   }
 }
 
@@ -57,9 +59,13 @@ export class RequestError extends ApiForgeError {
   readonly kind: RequestFailureKind;
 
   constructor(kind: RequestFailureKind, message: string, cause?: unknown) {
-    super(message, kind === 'timeout' ? 'TIMEOUT' : kind === 'cancelled' ? 'CANCELLED' : 'NETWORK', {
-      cause,
-    });
+    super(
+      message,
+      kind === 'timeout' ? 'TIMEOUT' : kind === 'cancelled' ? 'CANCELLED' : 'NETWORK',
+      {
+        cause,
+      },
+    );
     this.kind = kind;
   }
 }

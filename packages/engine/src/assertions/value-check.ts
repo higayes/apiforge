@@ -9,11 +9,30 @@ import type { AssertionResult } from '../types.js';
 import { formatValue, summarizeValueDiff } from '../util/diff.js';
 import { getPath } from '../util/path.js';
 import { validateJsonSchema } from './json-schema.js';
-import type { ValueCheck } from '../config/schema.js';
+import type { CheckInput, ValueCheck } from '../config/schema.js';
 
 const OPERATOR_KEYS = new Set([
-  'equals','notEquals','exists','type','matches','min','max','gt','gte','lt','lte',
-  'length','minLength','maxLength','in','notIn','contains','notContains','every','some','schema',
+  'equals',
+  'notEquals',
+  'exists',
+  'type',
+  'matches',
+  'min',
+  'max',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'length',
+  'minLength',
+  'maxLength',
+  'in',
+  'notIn',
+  'contains',
+  'notContains',
+  'every',
+  'some',
+  'schema',
 ]);
 
 /**
@@ -55,12 +74,29 @@ const OPERATOR_LABELS: Record<string, string> = {
   schema: 'matches schema',
 };
 
-function deepEqual(a: unknown, b: unknown): boolean {
+/**
+ * Structural equality. Key order must not matter — `JSON.stringify` comparison
+ * would report `{a, b}` and `{b, a}` as different, which is wrong for JSON
+ * objects and produced confusing deep-equality failures.
+ */
+export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
-  if (typeof a !== typeof b) return false;
   if (a === null || b === null) return false;
-  if (typeof a !== 'object') return false;
-  return JSON.stringify(a) === JSON.stringify(b);
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((item, index) => deepEqual(item, b[index]));
+  }
+
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every(
+    (key) => Object.prototype.hasOwnProperty.call(right, key) && deepEqual(left[key], right[key]),
+  );
 }
 
 export function describeType(value: unknown): string {
@@ -106,7 +142,12 @@ function evaluateOperator(
     const exists = found;
     return {
       passed: exists === wantExists,
-      message: exists === wantExists ? undefined : wantExists ? 'expected the value to exist, but it was missing' : 'expected the value to be missing, but it exists',
+      message:
+        exists === wantExists
+          ? undefined
+          : wantExists
+            ? 'expected the value to exist, but it was missing'
+            : 'expected the value to be missing, but it exists',
     };
   }
 
@@ -117,7 +158,10 @@ function evaluateOperator(
   switch (operator) {
     case 'equals':
       if (!deepEqual(value, expected)) {
-        const structural = expected !== null && typeof expected === 'object' ? summarizeValueDiff(expected, value) : undefined;
+        const structural =
+          expected !== null && typeof expected === 'object'
+            ? summarizeValueDiff(expected, value)
+            : undefined;
         return {
           passed: false,
           message: structural
@@ -135,14 +179,20 @@ function evaluateOperator(
     case 'type':
       return typeMatches(expected as NonNullable<ValueCheck['type']>, value)
         ? { passed: true }
-        : { passed: false, message: `expected type "${String(expected)}", got "${describeType(value)}"` };
+        : {
+            passed: false,
+            message: `expected type "${String(expected)}", got "${describeType(value)}"`,
+          };
 
     case 'matches': {
       let regex: RegExp;
       try {
         regex = new RegExp(String(expected), 'u');
       } catch (error) {
-        return { passed: false, message: `invalid regular expression: ${(error as Error).message}` };
+        return {
+          passed: false,
+          message: `invalid regular expression: ${(error as Error).message}`,
+        };
       }
       const text = typeof value === 'string' ? value : JSON.stringify(value);
       return regex.test(text)
@@ -165,6 +215,12 @@ function evaluateOperator(
         };
       }
       const limit = Number(expected);
+      if (!Number.isFinite(limit)) {
+        return {
+          passed: false,
+          message: `the ${OPERATOR_LABELS[operator]} limit must be a number, got ${formatValue(expected)} (unresolved template?)`,
+        };
+      }
       const passed =
         operator === 'min' || operator === 'gte'
           ? actual >= limit
@@ -175,7 +231,10 @@ function evaluateOperator(
               : actual < limit;
       return passed
         ? { passed: true }
-        : { passed: false, message: `expected ${operator === 'min' ? '>= ' : operator === 'max' ? '<= ' : `${OPERATOR_LABELS[operator]} `}${limit}, got ${actual}` };
+        : {
+            passed: false,
+            message: `expected ${operator === 'min' ? '>= ' : operator === 'max' ? '<= ' : `${OPERATOR_LABELS[operator]} `}${limit}, got ${actual}`,
+          };
     }
 
     case 'length':
@@ -186,11 +245,27 @@ function evaluateOperator(
         return { passed: false, message: `value of type "${describeType(value)}" has no length` };
       }
       const limit = Number(expected);
+      if (!Number.isFinite(limit)) {
+        return {
+          passed: false,
+          message: `the ${OPERATOR_LABELS[operator]} limit must be a number, got ${formatValue(expected)} (unresolved template?)`,
+        };
+      }
       const passed =
-        operator === 'length' ? actual === limit : operator === 'minLength' ? actual >= limit : actual <= limit;
+        operator === 'length'
+          ? actual === limit
+          : operator === 'minLength'
+            ? actual >= limit
+            : actual <= limit;
       const expectation =
-        operator === 'length' ? `length ${limit}` : operator === 'minLength' ? `length >= ${limit}` : `length <= ${limit}`;
-      return passed ? { passed: true } : { passed: false, message: `expected ${expectation}, got ${actual}` };
+        operator === 'length'
+          ? `length ${limit}`
+          : operator === 'minLength'
+            ? `length >= ${limit}`
+            : `length <= ${limit}`;
+      return passed
+        ? { passed: true }
+        : { passed: false, message: `expected ${expectation}, got ${actual}` };
     }
 
     case 'in':
@@ -200,20 +275,41 @@ function evaluateOperator(
       const passed = operator === 'in' ? present : !present;
       return passed
         ? { passed: true }
-        : { passed: false, message: `expected value ${operator === 'in' ? 'to be one of' : 'not to be in'} ${formatValue(list)}, got ${formatValue(value)}` };
+        : {
+            passed: false,
+            message: `expected value ${operator === 'in' ? 'to be one of' : 'not to be in'} ${formatValue(list)}, got ${formatValue(value)}`,
+          };
     }
 
-    case 'contains':
-      {
-        const contained = typeof value === 'string' ? value.includes(String(expected)) : Array.isArray(value) ? value.some((entry) => deepEqual(entry, expected)) : deepEqual(value, expected);
-        return contained ? { passed: true } : { passed: false, message: `${formatValue(value)} does not contain ${formatValue(expected)}` };
-      }
+    case 'contains': {
+      const contained =
+        typeof value === 'string'
+          ? value.includes(String(expected))
+          : Array.isArray(value)
+            ? value.some((entry) => deepEqual(entry, expected))
+            : deepEqual(value, expected);
+      return contained
+        ? { passed: true }
+        : {
+            passed: false,
+            message: `${formatValue(value)} does not contain ${formatValue(expected)}`,
+          };
+    }
 
-    case 'notContains':
-      {
-        const contained = typeof value === 'string' ? value.includes(String(expected)) : Array.isArray(value) ? value.some((entry) => deepEqual(entry, expected)) : false;
-        return contained ? { passed: false, message: `${formatValue(value)} unexpectedly contains ${formatValue(expected)}` } : { passed: true };
-      }
+    case 'notContains': {
+      const contained =
+        typeof value === 'string'
+          ? value.includes(String(expected))
+          : Array.isArray(value)
+            ? value.some((entry) => deepEqual(entry, expected))
+            : false;
+      return contained
+        ? {
+            passed: false,
+            message: `${formatValue(value)} unexpectedly contains ${formatValue(expected)}`,
+          }
+        : { passed: true };
+    }
 
     default:
       return { passed: false, message: `unsupported operator "${operator}"` };
@@ -278,7 +374,12 @@ export function evaluateValueCheck(
       const schema = expected as Record<string, unknown>;
       const expression = `${target} matches JSON Schema`;
       if (!resolved.found) {
-        results.push({ target, expression, passed: false, message: 'value is missing at this path' });
+        results.push({
+          target,
+          expression,
+          passed: false,
+          message: 'value is missing at this path',
+        });
         continue;
       }
       try {
@@ -288,7 +389,9 @@ export function evaluateValueCheck(
           expression,
           passed: validation.valid,
           actual: validation.valid ? undefined : resolved.value,
-          message: validation.valid ? undefined : `schema validation failed:\n${validation.errors.map((entry) => `  • ${entry}`).join('\n')}`,
+          message: validation.valid
+            ? undefined
+            : `schema validation failed:\n${validation.errors.map((entry) => `  • ${entry}`).join('\n')}`,
         });
       } catch (error) {
         results.push({ target, expression, passed: false, message: (error as Error).message });
@@ -321,7 +424,7 @@ export function evaluateValueCheck(
 
 export function evaluateJsonPathChecks(
   body: unknown,
-  checks: Record<string, ValueCheck>,
+  checks: Record<string, CheckInput>,
 ): AssertionResult[] {
   const results: AssertionResult[] = [];
   for (const [path, check] of Object.entries(checks)) {

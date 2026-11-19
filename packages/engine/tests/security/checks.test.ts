@@ -29,7 +29,10 @@ afterAll(async () => {
 
 describe('checkSecurityHeaders', () => {
   it('flags missing headers on a bare HTTPS response', () => {
-    const findings = checkSecurityHeaders({ 'content-type': 'application/json' }, 'https://api.example.com/x');
+    const findings = checkSecurityHeaders(
+      { 'content-type': 'application/json' },
+      'https://api.example.com/x',
+    );
     const ids = findings.map((finding) => finding.id);
     expect(ids).toContain('headers.missing.strict-transport-security');
     expect(ids).toContain('headers.missing.x-content-type-options');
@@ -60,16 +63,24 @@ describe('checkSecurityHeaders', () => {
 
   it('accepts nosniff case-insensitively and flags invalid values', () => {
     const ok = checkSecurityHeaders({ 'x-content-type-options': 'NoSniff' }, 'https://x.dev');
-    expect(ok.some((finding) => finding.id === 'headers.x-content-type-options.invalid')).toBe(false);
+    expect(ok.some((finding) => finding.id === 'headers.x-content-type-options.invalid')).toBe(
+      false,
+    );
     const bad = checkSecurityHeaders({ 'x-content-type-options': 'sniff' }, 'https://x.dev');
-    expect(bad.some((finding) => finding.id === 'headers.x-content-type-options.invalid')).toBe(true);
+    expect(bad.some((finding) => finding.id === 'headers.x-content-type-options.invalid')).toBe(
+      true,
+    );
   });
 
   it('only requires browser-facing headers for HTML responses', () => {
     const json = checkSecurityHeaders({ 'content-type': 'application/json' }, 'https://x.dev');
     const html = checkSecurityHeaders({ 'content-type': 'text/html' }, 'https://x.dev');
-    expect(json.some((finding) => finding.id === 'headers.missing.content-security-policy')).toBe(false);
-    expect(html.some((finding) => finding.id === 'headers.missing.content-security-policy')).toBe(true);
+    expect(json.some((finding) => finding.id === 'headers.missing.content-security-policy')).toBe(
+      false,
+    );
+    expect(html.some((finding) => finding.id === 'headers.missing.content-security-policy')).toBe(
+      true,
+    );
   });
 });
 
@@ -90,15 +101,27 @@ describe('checkCors', () => {
 
   it('warns when the origin is reflected with credentials', () => {
     const findings = checkCors(
-      { 'access-control-allow-origin': 'https://evil.example', 'access-control-allow-credentials': 'true' },
+      {
+        'access-control-allow-origin': 'https://evil.example',
+        'access-control-allow-credentials': 'true',
+      },
       { origin: 'https://evil.example' },
     );
-    expect(findings.find((finding) => finding.id === 'cors.reflects-origin')?.severity).toBe('high');
+    expect(findings.find((finding) => finding.id === 'cors.reflects-origin')?.severity).toBe(
+      'high',
+    );
   });
 
   it('passes explicit origins', () => {
-    const findings = checkCors({ 'access-control-allow-origin': 'https://app.example.com' }, { origin: 'https://other.example.com' });
-    expect(findings.some((finding) => finding.id === 'cors.explicit-origin' && finding.status === 'pass')).toBe(true);
+    const findings = checkCors(
+      { 'access-control-allow-origin': 'https://app.example.com' },
+      { origin: 'https://other.example.com' },
+    );
+    expect(
+      findings.some(
+        (finding) => finding.id === 'cors.explicit-origin' && finding.status === 'pass',
+      ),
+    ).toBe(true);
   });
 });
 
@@ -113,7 +136,10 @@ describe('checkCookies', () => {
   });
 
   it('passes properly flagged cookies', () => {
-    const findings = checkCookies({ 'set-cookie': 'session=abc; HttpOnly; Secure; SameSite=Lax' }, true);
+    const findings = checkCookies(
+      { 'set-cookie': 'session=abc; HttpOnly; Secure; SameSite=Lax' },
+      true,
+    );
     expect(findings.some((finding) => finding.status === 'pass')).toBe(true);
   });
 
@@ -129,7 +155,9 @@ describe('checkDisclosure', () => {
     const server = findings.find((finding) => finding.id === 'disclosure.server');
     expect(server?.status).toBe('warn');
     expect(server?.severity).toBe('low');
-    expect(findings.find((finding) => finding.id === 'disclosure.x-powered-by')?.status).toBe('info');
+    expect(findings.find((finding) => finding.id === 'disclosure.x-powered-by')?.status).toBe(
+      'info',
+    );
   });
 
   it('masks secrets found in bodies', () => {
@@ -152,7 +180,10 @@ describe('checkDisclosure', () => {
   });
 
   it('detects JWTs and AWS keys', () => {
-    const jwts = checkDisclosure({}, 'token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N');
+    const jwts = checkDisclosure(
+      {},
+      'token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N',
+    );
     expect(jwts.some((finding) => finding.id === 'disclosure.secret.jwt')).toBe(true);
     const aws = checkDisclosure({}, 'AKIAIOSFODNN7EXAMPLE');
     expect(aws.some((finding) => finding.id === 'disclosure.secret.aws-access-key')).toBe(true);
@@ -195,8 +226,13 @@ describe('checkTls', () => {
 
 describe('checkAdvertisedMethods', () => {
   it('flags unsafe advertised methods', () => {
-    const findings = checkAdvertisedMethods({ allow: 'GET, HEAD, DELETE', corsAllowMethods: 'PUT' });
-    expect(findings.map((finding) => finding.id)).toEqual(expect.arrayContaining(['methods.delete', 'methods.put']));
+    const findings = checkAdvertisedMethods({
+      allow: 'GET, HEAD, DELETE',
+      corsAllowMethods: 'PUT',
+    });
+    expect(findings.map((finding) => finding.id)).toEqual(
+      expect.arrayContaining(['methods.delete', 'methods.put']),
+    );
   });
 
   it('ignores safe methods', () => {
@@ -211,7 +247,10 @@ describe('checkAdvertisedMethods', () => {
 describe('scoring and thresholds', () => {
   it('penalizes failing findings by severity and clamps to 0-100', () => {
     expect(scoreFindings([])).toBe(100);
-    const findings = checkCors({ 'access-control-allow-origin': '*', 'access-control-allow-credentials': 'true' }, {});
+    const findings = checkCors(
+      { 'access-control-allow-origin': '*', 'access-control-allow-credentials': 'true' },
+      {},
+    );
     expect(findings).toHaveLength(1);
     expect(scoreFindings(findings)).toBe(60);
     expect(scoreFindings([...findings, ...findings])).toBe(20);
@@ -223,7 +262,10 @@ describe('scoring and thresholds', () => {
   });
 
   it('applies severity thresholds only to failing findings', () => {
-    const findings = checkCors({ 'access-control-allow-origin': '*', 'access-control-allow-credentials': 'true' }, {});
+    const findings = checkCors(
+      { 'access-control-allow-origin': '*', 'access-control-allow-credentials': 'true' },
+      {},
+    );
     expect(passesThreshold(findings, 'critical')).toBe(false);
     expect(passesThreshold(findings, 'high')).toBe(false);
     expect(passesThreshold([], 'low')).toBe(true);
@@ -251,19 +293,33 @@ describe('runSecurity (integration)', () => {
   });
 
   it('passes a hardened endpoint (TLS check disabled: the mock server is plain HTTP)', async () => {
-    const result = await runSecurity({ url: `${server.url}/security/hardened`, timeoutMs: 5000, checks: { tls: false }, tool });
+    const result = await runSecurity({
+      url: `${server.url}/security/hardened`,
+      timeoutMs: 5000,
+      checks: { tls: false },
+      tool,
+    });
     expect(result.counts.fail).toBe(0);
     expect(result.passed).toBe(true);
   });
 
   it('fails plain-HTTP targets on the TLS check by default', async () => {
-    const result = await runSecurity({ url: `${server.url}/security/hardened`, timeoutMs: 5000, tool });
+    const result = await runSecurity({
+      url: `${server.url}/security/hardened`,
+      timeoutMs: 5000,
+      tool,
+    });
     expect(result.findings.find((finding) => finding.id === 'tls.not-used')?.status).toBe('fail');
     expect(result.passed).toBe(false);
   });
 
   it('produces a complete SecurityReport', async () => {
-    const result = await runSecurity({ url: `${server.url}/security/hardened`, timeoutMs: 5000, checks: { tls: false }, tool });
+    const result = await runSecurity({
+      url: `${server.url}/security/hardened`,
+      timeoutMs: 5000,
+      checks: { tls: false },
+      tool,
+    });
     const report = buildSecurityReport({
       title: 'Security',
       target: 'http://mock',

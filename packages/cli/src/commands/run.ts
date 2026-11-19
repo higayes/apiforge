@@ -6,7 +6,7 @@ import {
   runSuite,
   type ReportFormat,
 } from '@apiforge/engine';
-import { EXIT_CHECKS_FAILED, EXIT_INTERRUPTED, EXIT_SUCCESS } from '../exit-codes.js';
+import { EXIT_CHECKS_FAILED, EXIT_INTERRUPTED, EXIT_NETWORK, EXIT_SUCCESS } from '../exit-codes.js';
 import { createUiFromCommand } from '../lib/context.js';
 import {
   assertHttpUrl,
@@ -50,7 +50,10 @@ export function registerRunCommand(program: Command): void {
     .option('-d, --body <text>', 'request body (JSON is detected automatically)')
     .option('--body-file <path>', 'read the request body from a file')
     .option('--form <key=value>', 'URL-encoded form field (repeatable)', collect, [])
-    .option('--json-body', 'treat --body/--body-file content as JSON even if it does not start with { or [')
+    .option(
+      '--json-body',
+      'treat --body/--body-file content as JSON even if it does not start with { or [',
+    )
     .option('--expect-status <code>', 'assert the response status code')
     .option('--timeout <ms>', 'request timeout in milliseconds')
     .option('--reporter <formats>', 'report formats, comma separated: terminal,json,html,junit')
@@ -74,8 +77,13 @@ export function registerRunCommand(program: Command): void {
         });
         const timeoutMs = parseTimeout(options.timeout);
         const expectStatus =
-          options.expectStatus !== undefined ? Number.parseInt(options.expectStatus, 10) : undefined;
-        if (expectStatus !== undefined && (!Number.isInteger(expectStatus) || expectStatus < 100 || expectStatus > 599)) {
+          options.expectStatus !== undefined
+            ? Number.parseInt(options.expectStatus, 10)
+            : undefined;
+        if (
+          expectStatus !== undefined &&
+          (!Number.isInteger(expectStatus) || expectStatus < 100 || expectStatus > 599)
+        ) {
           throw new Error(`Invalid --expect-status "${options.expectStatus}" (expected 100-599)`);
         }
 
@@ -115,11 +123,21 @@ export function registerRunCommand(program: Command): void {
             ...(options.insecure === true ? { insecureTLS: true } : {}),
             signal: cancellation.signal,
           });
-          const report = buildTestReport({ title: 'Ad-hoc request', suites: [run], tool: TOOL_INFO });
+          const report = buildTestReport({
+            title: 'Ad-hoc request',
+            suites: [run],
+            tool: TOOL_INFO,
+          });
 
           if (!options.json) {
             ui.line();
-            ui.block(renderTestReport(report, { color: ui.palette.enabled, verbose: options.verbose === true, showBodies: options.verbose === true }));
+            ui.block(
+              renderTestReport(report, {
+                color: ui.palette.enabled,
+                verbose: options.verbose === true,
+                showBodies: options.verbose === true,
+              }),
+            );
           }
 
           await emitReport(report, {
@@ -135,11 +153,27 @@ export function registerRunCommand(program: Command): void {
             // The JSON report is already on stdout; keep the exit code semantic.
           }
 
+          // A request that never produced a response is a network failure, not
+          // a failed assertion: CI can retry exit 4 but must fail on exit 1.
+          const onlyNetworkErrors =
+            !report.passed &&
+            run.totals.failed === 0 &&
+            run.totals.errored > 0 &&
+            run.results.every(
+              (result) =>
+                result.status !== 'error' ||
+                /network error|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|getaddrinfo|timed out|timeout/i.test(
+                  result.error ?? '',
+                ),
+            );
+
           process.exitCode = cancellation.interrupted
             ? EXIT_INTERRUPTED
             : report.passed
               ? EXIT_SUCCESS
-              : EXIT_CHECKS_FAILED;
+              : onlyNetworkErrors
+                ? EXIT_NETWORK
+                : EXIT_CHECKS_FAILED;
         } finally {
           cancellation.dispose();
         }

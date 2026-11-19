@@ -5,7 +5,12 @@ import { join } from 'node:path';
 import { buildTestReport } from '../../src/test/report.js';
 import { runSuite } from '../../src/test/runner.js';
 import { parseSuiteDocument } from '../../src/config/schema.js';
-import { renderTestReport, renderPerformanceReport, renderSecurityReport, renderContractReport } from '../../src/report/terminal.js';
+import {
+  renderTestReport,
+  renderPerformanceReport,
+  renderSecurityReport,
+  renderContractReport,
+} from '../../src/report/terminal.js';
 import { renderTestJson } from '../../src/report/json.js';
 import { renderJUnit } from '../../src/report/junit.js';
 import { renderTestHtml } from '../../src/report/html.js';
@@ -44,7 +49,11 @@ async function sampleReport(): Promise<TestReport> {
       description: 'Read-only endpoints',
       baseUrl: server.url,
       tests: [
-        { name: 'lists users <script>alert(1)</script>', path: '/json', expect: { status: 200, jsonPath: { id: 42 } } },
+        {
+          name: 'lists users <script>alert(1)</script>',
+          path: '/json',
+          expect: { status: 200, jsonPath: { id: 42 } },
+        },
         { name: 'skipped check', path: '/json', skip: 'maintenance' },
       ],
     }),
@@ -54,10 +63,21 @@ async function sampleReport(): Promise<TestReport> {
     parseSuiteDocument({
       name: 'Failing suite',
       baseUrl: server.url,
-      tests: [{ name: 'expects 201', path: '/json', expect: { status: 201, headers: { 'x-missing': { exists: true } } } }],
+      tests: [
+        {
+          name: 'expects 201',
+          path: '/json',
+          expect: { status: 201, headers: { 'x-missing': { exists: true } } },
+        },
+      ],
     }),
   );
-  return buildTestReport({ title: 'APIFORGE Test Report', suites: [passing, failing], tool, environment: 'staging' });
+  return buildTestReport({
+    title: 'APIFORGE Test Report',
+    suites: [passing, failing],
+    tool,
+    environment: 'staging',
+  });
 }
 
 describe('terminal reporter', () => {
@@ -85,7 +105,13 @@ describe('terminal reporter', () => {
   });
 
   it('renders performance reports', async () => {
-    const report = await runPerformance({ method: 'GET', url: `${server.url}/json`, maxRequests: 5, concurrency: 1, tool });
+    const report = await runPerformance({
+      method: 'GET',
+      url: `${server.url}/json`,
+      maxRequests: 5,
+      concurrency: 1,
+      tool,
+    });
     const output = renderPerformanceReport(report, { color: false });
     expect(output).toContain('Performance results');
     expect(output).toContain('Latency p95');
@@ -93,7 +119,12 @@ describe('terminal reporter', () => {
   });
 
   it('renders security reports with evidence and remediation', async () => {
-    const result = await runSecurity({ url: `${server.url}/security/weak`, timeoutMs: 5000, checks: { tls: false }, tool });
+    const result = await runSecurity({
+      url: `${server.url}/security/weak`,
+      timeoutMs: 5000,
+      checks: { tls: false },
+      tool,
+    });
     const report = buildSecurityReport({ title: 'Security', target: server.url, tool, result });
     const output = renderSecurityReport(report, { color: false });
     expect(output).toContain('Security analysis');
@@ -129,7 +160,13 @@ describe('JSON reporter', () => {
       parseSuiteDocument({
         name: 'secrets',
         baseUrl: server.url,
-        tests: [{ name: 'echo auth', path: '/echo', headers: { authorization: 'Bearer super-secret-token' } }],
+        tests: [
+          {
+            name: 'echo auth',
+            path: '/echo',
+            headers: { authorization: 'Bearer super-secret-token' },
+          },
+        ],
       }),
     );
     const json = renderTestJson(buildTestReport({ title: 'x', suites: [suite], tool }));
@@ -157,13 +194,18 @@ describe('JUnit reporter', () => {
 
     // Balanced tags for the elements we emit.
     const opens = (xml.match(/<testcase/g) ?? []).length;
-    const closes = (xml.match(/<\/testcase>/g) ?? []).length + (xml.match(/<testcase[^>]*\/>/g) ?? []).length;
+    const closes =
+      (xml.match(/<\/testcase>/g) ?? []).length + (xml.match(/<testcase[^>]*\/>/g) ?? []).length;
     expect(opens).toBe(closes);
   });
 
   it('escapes XML-special characters', async () => {
     const suite = await runSuite(
-      parseSuiteDocument({ name: 'a & b <c>', baseUrl: server.url, tests: [{ name: 'x "y"', path: '/json' }] }),
+      parseSuiteDocument({
+        name: 'a & b <c>',
+        baseUrl: server.url,
+        tests: [{ name: 'x "y"', path: '/json' }],
+      }),
     );
     const xml = renderJUnit(buildTestReport({ title: 't & t', suites: [suite], tool }));
     expect(xml).toContain('a &amp; b &lt;c&gt;');
@@ -206,7 +248,10 @@ describe('HTML reporter', () => {
       parseSuiteDocument({
         name: 'thresholded',
         baseUrl: server.url,
-        thresholds: [{ metric: 'successRate', min: 100 }, { metric: 'p95', max: 999999 }],
+        thresholds: [
+          { metric: 'successRate', min: 100 },
+          { metric: 'p95', max: 999999 },
+        ],
         tests: [{ name: 'ok', path: '/json' }],
       }),
     );
@@ -241,7 +286,10 @@ describe('report writer', () => {
 
   it('skips the terminal format', async () => {
     const report = await sampleReport();
-    const artifacts = await writeReports(report, { outDir: join(tempDir, 'terminal-only'), formats: ['terminal'] });
+    const artifacts = await writeReports(report, {
+      outDir: join(tempDir, 'terminal-only'),
+      formats: ['terminal'],
+    });
     expect(artifacts).toEqual([]);
   });
 
@@ -258,7 +306,11 @@ describe('report writer', () => {
 
 describe('colour handling', () => {
   it('respects NO_COLOR and FORCE_COLOR', () => {
-    const original = { NO_COLOR: process.env.NO_COLOR, FORCE_COLOR: process.env.FORCE_COLOR, TERM: process.env.TERM };
+    const original = {
+      NO_COLOR: process.env.NO_COLOR,
+      FORCE_COLOR: process.env.FORCE_COLOR,
+      TERM: process.env.TERM,
+    };
     try {
       process.env.NO_COLOR = '1';
       delete process.env.FORCE_COLOR;

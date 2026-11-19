@@ -74,24 +74,27 @@ function exampleFromSchema(schema: unknown, depth = 0): unknown {
       return schema.items ? [exampleFromSchema(schema.items, depth + 1)] : [];
     case 'object': {
       const properties = asObject(schema.properties);
-      const required = asArray(schema.required).filter((entry): entry is string => typeof entry === 'string');
+      const required = asArray(schema.required).filter(
+        (entry): entry is string => typeof entry === 'string',
+      );
       const out: JsonObject = {};
       for (const key of required) out[key] = exampleFromSchema(properties[key], depth + 1);
       return out;
     }
     default: {
-      if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) return exampleFromSchema(schema.oneOf[0], depth + 1);
-      if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) return exampleFromSchema(schema.anyOf[0], depth + 1);
-      if (isObject(schema.properties)) return exampleFromSchema({ ...schema, type: 'object' }, depth + 1);
+      if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0)
+        return exampleFromSchema(schema.oneOf[0], depth + 1);
+      if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0)
+        return exampleFromSchema(schema.anyOf[0], depth + 1);
+      if (isObject(schema.properties))
+        return exampleFromSchema({ ...schema, type: 'object' }, depth + 1);
       return undefined;
     }
   }
 }
 
 /** Convert OpenAPI parameter definitions into query/header/cookie/path maps. */
-function collectParameters(
-  parameters: unknown[],
-): {
+function collectParameters(parameters: unknown[]): {
   query: Record<string, string>;
   headers: Record<string, string>;
   cookies: Record<string, string>;
@@ -131,8 +134,14 @@ function statusExpectation(responses: JsonObject): number | undefined {
   return candidates[0];
 }
 
-function responseSchemaFor(responses: JsonObject, status: number | undefined): JsonObject | undefined {
-  const keys = status !== undefined ? [String(status)] : Object.keys(responses).filter((key) => /^2\d\d$/.test(key));
+function responseSchemaFor(
+  responses: JsonObject,
+  status: number | undefined,
+): JsonObject | undefined {
+  const keys =
+    status !== undefined
+      ? [String(status)]
+      : Object.keys(responses).filter((key) => /^2\d\d$/.test(key));
   for (const key of keys) {
     const response = asObject(responses[key]);
     const content = asObject(response.content);
@@ -148,7 +157,10 @@ function responseSchemaFor(responses: JsonObject, status: number | undefined): J
 
 const SUPPORTED_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;
 
-export function importOpenApiDocument(document: unknown, options: ImportOptions = {}): ImportResult {
+export function importOpenApiDocument(
+  document: unknown,
+  options: ImportOptions = {},
+): ImportResult {
   if (!isObject(document)) throw new ConfigError('The OpenAPI document must be a JSON/YAML object');
   const version = String(document.openapi ?? document.swagger ?? '');
   if (!version) {
@@ -158,31 +170,44 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
   }
   const isSwagger2 = version.startsWith('2');
   if (!isSwagger2 && !version.startsWith('3')) {
-    throw new ConfigError(`Unsupported OpenAPI version: ${version}`, ['Supported versions: Swagger 2.0 and OpenAPI 3.x']);
+    throw new ConfigError(`Unsupported OpenAPI version: ${version}`, [
+      'Supported versions: Swagger 2.0 and OpenAPI 3.x',
+    ]);
   }
 
   const warnings: string[] = [];
   const dereferenced = dereferenceLocalRefs(document) as JsonObject;
   const info = asObject(dereferenced.info);
-  const title = typeof info.title === 'string' && info.title.trim() !== '' ? info.title.trim() : 'Imported API';
+  const title =
+    typeof info.title === 'string' && info.title.trim() !== '' ? info.title.trim() : 'Imported API';
 
   let baseUrl = options.baseUrl;
   if (!baseUrl) {
     if (isSwagger2) {
-      const schemes = asArray(dereferenced.schemes).filter((entry): entry is string => typeof entry === 'string');
+      const schemes = asArray(dereferenced.schemes).filter(
+        (entry): entry is string => typeof entry === 'string',
+      );
       const host = typeof dereferenced.host === 'string' ? dereferenced.host : undefined;
       const basePath = typeof dereferenced.basePath === 'string' ? dereferenced.basePath : '';
       if (host) baseUrl = `${schemes[0] ?? 'https'}://${host}${basePath}`;
-      else warnings.push('Swagger 2.0 document has no `host`; set `baseUrl` manually in the generated suite.');
+      else
+        warnings.push(
+          'Swagger 2.0 document has no `host`; set `baseUrl` manually in the generated suite.',
+        );
     } else {
       const servers = asArray(dereferenced.servers);
       const first = asObject(servers[0]);
       if (typeof first.url === 'string' && first.url.trim() !== '') baseUrl = first.url;
-      else warnings.push('The OpenAPI document declares no `servers`; set `baseUrl` manually in the generated suite.');
+      else
+        warnings.push(
+          'The OpenAPI document declares no `servers`; set `baseUrl` manually in the generated suite.',
+        );
     }
   }
   if (baseUrl && /[{}]/.test(baseUrl)) {
-    warnings.push(`Server URL contains template variables: ${baseUrl} — replace them in the generated suite.`);
+    warnings.push(
+      `Server URL contains template variables: ${baseUrl} — replace them in the generated suite.`,
+    );
   }
 
   const paths = asObject(dereferenced.paths);
@@ -198,8 +223,14 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
       const operation = pathItem[method];
       if (!isObject(operation)) continue;
 
-      const operationTags = asArray(operation.tags).filter((entry): entry is string => typeof entry === 'string');
-      if (options.tags && options.tags.length > 0 && !operationTags.some((tag) => options.tags?.includes(tag))) {
+      const operationTags = asArray(operation.tags).filter(
+        (entry): entry is string => typeof entry === 'string',
+      );
+      if (
+        options.tags &&
+        options.tags.length > 0 &&
+        !operationTags.some((tag) => options.tags?.includes(tag))
+      ) {
         continue;
       }
       if (operation.deprecated === true) continue;
@@ -210,7 +241,9 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
       const resolvedPath = path.replace(/\{([^}]+)\}/g, (_match, name: string) => {
         const value = pathParams[name];
         if (value === undefined) {
-          warnings.push(`${method.toUpperCase()} ${path}: path parameter "${name}" has no example value; using "string".`);
+          warnings.push(
+            `${method.toUpperCase()} ${path}: path parameter "${name}" has no example value; using "string".`,
+          );
           return 'string';
         }
         return encodeURIComponent(value);
@@ -220,12 +253,25 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
       const requestBody = asObject(operation.requestBody);
       const requestContent = asObject(requestBody.content);
       const jsonContent = asObject(
-        requestContent['application/json'] ?? requestContent['application/*+json'] ?? Object.values(requestContent)[0],
+        requestContent['application/json'] ??
+          requestContent['application/*+json'] ??
+          Object.values(requestContent)[0],
       );
       if (isObject(jsonContent.schema)) {
+        // Prefer explicit examples; otherwise synthesise from the schema and
+        // remind the author that placeholders must be replaced. Generated
+        // bodies are a *starting point*, never a claim about real data.
         const example = jsonContent.example ?? exampleFromSchema(jsonContent.schema);
+        if (jsonContent.example === undefined && example !== undefined) {
+          warnings.push(
+            `${method.toUpperCase()} ${path}: the request body was filled with schema-derived placeholder values — replace them with real data before relying on this test.`,
+          );
+        }
         if (example !== undefined) body = { json: example };
-        else warnings.push(`${method.toUpperCase()} ${path}: request body schema produced no example; body omitted.`);
+        else
+          warnings.push(
+            `${method.toUpperCase()} ${path}: request body schema produced no example; body omitted.`,
+          );
       } else if (operation.requestBody === undefined) {
         // Swagger 2.0 style body parameter
         for (const parameter of parameters) {
@@ -245,9 +291,14 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
           : `${method.toUpperCase()} ${path}`;
       const summary = typeof operation.summary === 'string' ? operation.summary : undefined;
 
-      let expect: TestDefinition['expect'] = successStatus !== undefined ? { status: successStatus } : { status: { min: 200, max: 299 } };
+      let expect: TestDefinition['expect'] =
+        successStatus !== undefined
+          ? { status: successStatus }
+          : { status: { min: 200, max: 299 } };
       if (successStatus === undefined) {
-        warnings.push(`${method.toUpperCase()} ${path}: no documented 2xx response; asserting 2xx range instead.`);
+        warnings.push(
+          `${method.toUpperCase()} ${path}: no documented 2xx response; asserting 2xx range instead.`,
+        );
       }
 
       if (options.includeSchemas === true) {
@@ -258,7 +309,9 @@ export function importOpenApiDocument(document: unknown, options: ImportOptions 
           if (serialized.length <= limit) {
             expect = { ...expect, body: { schema } };
           } else {
-            warnings.push(`${method.toUpperCase()} ${path}: response schema is larger than ${limit} bytes; skipped.`);
+            warnings.push(
+              `${method.toUpperCase()} ${path}: response schema is larger than ${limit} bytes; skipped.`,
+            );
           }
         }
       }

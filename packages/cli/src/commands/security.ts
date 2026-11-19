@@ -49,8 +49,17 @@ export function registerSecurityCommand(program: Command): void {
     .option('-u, --url <url>', 'target URL')
     .option('--config <path>', 'security specification file (YAML/JSON)')
     .option('-H, --header <name=value>', 'request header (repeatable)', collect, [])
-    .option('--threshold <severity>', `fail on findings at or above this severity (${SEVERITIES.join(', ')})`, 'high')
-    .option('--check <name>', 'run only these checks (repeatable): headers, cors, cookies, disclosure, auth, methods, tls', collect, [])
+    .option(
+      '--threshold <severity>',
+      `fail on findings at or above this severity (${SEVERITIES.join(', ')})`,
+      'high',
+    )
+    .option(
+      '--check <name>',
+      'run only these checks (repeatable): headers, cors, cookies, disclosure, auth, methods, tls',
+      collect,
+      [],
+    )
     .option('--origin <url>', 'origin to use for CORS analysis')
     .option('--schema <path>', 'validate an OpenAPI/JSON Schema document and report on it')
     .option('--timeout <ms>', 'request timeout in milliseconds')
@@ -69,13 +78,17 @@ export function registerSecurityCommand(program: Command): void {
 
       try {
         if (!options.url && !options.config) {
-          throw new ConfigError('A target is required: pass --url <https://api.example.com> or --config <file>');
+          throw new ConfigError(
+            'A target is required: pass --url <https://api.example.com> or --config <file>',
+          );
         }
         if (options.url && options.config) {
           throw new ConfigError('Pass either --url or --config, not both');
         }
         if (!SEVERITIES.includes((options.threshold ?? 'high') as Severity)) {
-          throw new ConfigError(`Invalid --threshold "${options.threshold}"`, [`Supported severities: ${SEVERITIES.join(', ')}`]);
+          throw new ConfigError(`Invalid --threshold "${options.threshold}"`, [
+            `Supported severities: ${SEVERITIES.join(', ')}`,
+          ]);
         }
         const threshold = options.threshold as Severity;
 
@@ -102,8 +115,22 @@ export function registerSecurityCommand(program: Command): void {
         if (options.config) {
           const document = await readStructuredInput(options.config, 'security specification');
           const spec = parseSecurityDocument(document, options.config);
-          const specUrl = spec.target.url ?? spec.target.path;
-          if (!specUrl) throw new ConfigError('The security specification needs `target.url`');
+          let specUrl = spec.target.url ?? '';
+          if (!specUrl) {
+            const path = spec.target.path ?? '';
+            if (!path) {
+              throw new ConfigError(
+                'The security specification needs `target.url` or `target.path`',
+              );
+            }
+            if (!spec.baseUrl) {
+              throw new ConfigError(
+                `The security target uses a relative path ("${path}") but no base URL is configured`,
+                ['Add `baseUrl: https://api.example.com` to the spec, or use a full `target.url`.'],
+              );
+            }
+            specUrl = new URL(path, spec.baseUrl).toString();
+          }
           targetUrl = assertHttpUrl(specUrl, 'security target');
           method = spec.target.method ?? 'GET';
           headers = { ...(spec.target.headers ?? {}), ...headers };
@@ -117,10 +144,26 @@ export function registerSecurityCommand(program: Command): void {
 
         // `--check` narrows (or widens) the configured checks.
         if (options.check && options.check.length > 0) {
-          const known = new Set(['headers', 'cors', 'cookies', 'disclosure', 'auth', 'methods', 'tls']);
+          const known = new Set([
+            'headers',
+            'cors',
+            'cookies',
+            'disclosure',
+            'auth',
+            'methods',
+            'tls',
+          ]);
+          // Accept both `--check headers --check tls` and `--check headers,tls`:
+          // the comma form matches `--reporter` and is what people type.
+          options.check = options.check
+            .flatMap((entry) => entry.split(','))
+            .map((entry) => entry.trim())
+            .filter((entry) => entry !== '');
           for (const name of options.check) {
             if (!known.has(name)) {
-              throw new ConfigError(`Unknown security check "${name}"`, [`Supported checks: ${[...known].join(', ')}`]);
+              throw new ConfigError(`Unknown security check "${name}"`, [
+                `Supported checks: ${[...known].join(', ')}`,
+              ]);
             }
           }
           const selection: CheckSelection = {};
@@ -146,7 +189,11 @@ export function registerSecurityCommand(program: Command): void {
 
         ui.banner(TOOL_INFO.version);
         ui.line(ui.palette.gray(`Passive security analysis of ${targetUrl}`));
-        ui.line(ui.palette.gray('This is not a penetration test. Only analyze systems you are authorized to test.'));
+        ui.line(
+          ui.palette.gray(
+            'This is not a penetration test. Only analyze systems you are authorized to test.',
+          ),
+        );
         ui.startSpinner('Analyzing response headers, cookies, TLS usage and disclosures…');
 
         const result = await runSecurity({
@@ -177,10 +224,14 @@ export function registerSecurityCommand(program: Command): void {
             schemaDocument = parsed as Record<string, unknown>;
           } catch (error) {
             if (error instanceof ConfigError) throw error;
-            throw new ConfigError(`Could not read schema file: ${options.schema}`, [String((error as Error).message)]);
+            throw new ConfigError(`Could not read schema file: ${options.schema}`, [
+              String((error as Error).message),
+            ]);
           }
 
-          const isOpenApi = typeof schemaDocument.openapi === 'string' || typeof schemaDocument.swagger === 'string';
+          const isOpenApi =
+            typeof schemaDocument.openapi === 'string' ||
+            typeof schemaDocument.swagger === 'string';
           if (isOpenApi) {
             const paths = schemaDocument.paths;
             let operationCount = 0;
@@ -259,13 +310,32 @@ export function registerSecurityCommand(program: Command): void {
 
           // Recompute counts, score and pass/fail so the report reflects the
           // extra specification findings.
-          const counts: Record<SecurityFinding['status'], number> = { pass: 0, warn: 0, fail: 0, info: 0, skipped: 0 };
-          const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+          const counts: Record<SecurityFinding['status'], number> = {
+            pass: 0,
+            warn: 0,
+            fail: 0,
+            info: 0,
+            skipped: 0,
+          };
+          const bySeverity: Record<Severity, number> = {
+            critical: 0,
+            high: 0,
+            medium: 0,
+            low: 0,
+            info: 0,
+          };
           for (const finding of findings) {
             counts[finding.status] += 1;
-            if (finding.status === 'fail' || finding.status === 'warn') bySeverity[finding.severity] += 1;
+            if (finding.status === 'fail' || finding.status === 'warn')
+              bySeverity[finding.severity] += 1;
           }
-          const rank: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+          const rank: Record<Severity, number> = {
+            critical: 4,
+            high: 3,
+            medium: 2,
+            low: 1,
+            info: 0,
+          };
           result.findings = findings;
           result.counts = { ...counts, bySeverity };
           result.score = scoreFindings(findings);
@@ -283,7 +353,12 @@ export function registerSecurityCommand(program: Command): void {
         report.findings = findings;
 
         if (!options.json) {
-          ui.block(renderSecurityReport(report, { color: ui.palette.enabled, verbose: options.verbose === true }));
+          ui.block(
+            renderSecurityReport(report, {
+              color: ui.palette.enabled,
+              verbose: options.verbose === true,
+            }),
+          );
         }
 
         await emitReport(report, {
@@ -295,7 +370,11 @@ export function registerSecurityCommand(program: Command): void {
           renderTerminal: () => renderSecurityReport(report, { color: false }),
         });
 
-        process.exitCode = cancellation.interrupted ? EXIT_INTERRUPTED : report.passed ? EXIT_SUCCESS : EXIT_CHECKS_FAILED;
+        process.exitCode = cancellation.interrupted
+          ? EXIT_INTERRUPTED
+          : report.passed
+            ? EXIT_SUCCESS
+            : EXIT_CHECKS_FAILED;
       } finally {
         cancellation.dispose();
         await closeHttpResources();

@@ -5,7 +5,13 @@
 
 export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
 
-const LEVEL_WEIGHT: Record<LogLevel, number> = { silent: 100, error: 40, warn: 30, info: 20, debug: 10 };
+const LEVEL_WEIGHT: Record<LogLevel, number> = {
+  silent: 100,
+  error: 40,
+  warn: 30,
+  info: 20,
+  debug: 10,
+};
 
 export type LogEvent = Record<string, unknown>;
 
@@ -40,7 +46,11 @@ function createInner(options: LoggerOptions, bindings: LogEvent): Logger {
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
 
-  const emit = (entryLevel: 'error' | 'warn' | 'info' | 'debug', message: string, event?: LogEvent): void => {
+  const emit = (
+    entryLevel: 'error' | 'warn' | 'info' | 'debug',
+    message: string,
+    event?: LogEvent,
+  ): void => {
     if (LEVEL_WEIGHT[entryLevel] < LEVEL_WEIGHT[level]) return;
     const stream = entryLevel === 'error' || entryLevel === 'warn' ? stderr : stdout;
     if (json) {

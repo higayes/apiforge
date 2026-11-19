@@ -13,7 +13,9 @@ export interface CancellationController {
   dispose(): void;
 }
 
-export function installCancellation(options: { onFirstInterrupt?: () => void } = {}): CancellationController {
+export function installCancellation(
+  options: { onFirstInterrupt?: () => void } = {},
+): CancellationController {
   const controller = new AbortController();
   let interrupted = false;
   let reason: InterruptReason | undefined;

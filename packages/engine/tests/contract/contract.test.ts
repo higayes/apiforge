@@ -24,14 +24,23 @@ afterAll(async () => {
 
 describe('inferShape', () => {
   it('captures nested types without values', () => {
-    const shape = inferShape({ id: 1, name: 'x', tags: ['a'], meta: { ok: true, score: 1.5 }, nothing: null });
+    const shape = inferShape({
+      id: 1,
+      name: 'x',
+      tags: ['a'],
+      meta: { ok: true, score: 1.5 },
+      nothing: null,
+    });
     expect(shape).toEqual({
       type: 'object',
       properties: {
         id: { type: 'number' },
         name: { type: 'string' },
         tags: { type: 'array', element: { type: 'string' } },
-        meta: { type: 'object', properties: { ok: { type: 'boolean' }, score: { type: 'number' } } },
+        meta: {
+          type: 'object',
+          properties: { ok: { type: 'boolean' }, score: { type: 'number' } },
+        },
         nothing: { type: 'null' },
       },
     });
@@ -65,7 +74,12 @@ describe('diffShapes', () => {
   });
 
   it('reports added fields as compatible', () => {
-    const current = inferShape({ id: 1, nested: { keep: true, drop: 'x' }, list: [{ a: 1 }], extra: true });
+    const current = inferShape({
+      id: 1,
+      nested: { keep: true, drop: 'x' },
+      list: [{ a: 1 }],
+      extra: true,
+    });
     const changes = diffShapes(baseline, current);
     expect(changes).toEqual([{ path: '$.extra', change: 'added', after: 'boolean' }]);
     expect(isCompatible(changes)).toBe(true);
@@ -74,7 +88,12 @@ describe('diffShapes', () => {
   it('reports type changes as breaking', () => {
     const current = inferShape({ id: '1', nested: { keep: true, drop: 'x' }, list: [{ a: 1 }] });
     const changes = diffShapes(baseline, current);
-    expect(changes[0]).toEqual({ path: '$.id', change: 'type-changed', before: 'number', after: 'string' });
+    expect(changes[0]).toEqual({
+      path: '$.id',
+      change: 'type-changed',
+      before: 'number',
+      after: 'string',
+    });
     expect(isCompatible(changes)).toBe(false);
   });
 
@@ -127,15 +146,27 @@ describe('runContract', () => {
         $defs: { tag: { type: 'string' } },
         type: 'object',
         required: ['id', 'name'],
-        properties: { id: { type: 'number' }, name: { type: 'string' }, tags: { type: 'array', items: { $ref: '#/$defs/tag' } } },
+        properties: {
+          id: { type: 'number' },
+          name: { type: 'string' },
+          tags: { type: 'array', items: { $ref: '#/$defs/tag' } },
+        },
       }),
     );
     const report = await runContract({ url: `${server.url}/json`, baselineFile, schemaFile, tool });
     expect(report.schemaValidation?.valid).toBe(true);
     expect(report.passed).toBe(true);
 
-    await writeFile(schemaFile, JSON.stringify({ type: 'object', required: ['definitelyMissing'] }));
-    const failing = await runContract({ url: `${server.url}/json`, baselineFile, schemaFile, tool });
+    await writeFile(
+      schemaFile,
+      JSON.stringify({ type: 'object', required: ['definitelyMissing'] }),
+    );
+    const failing = await runContract({
+      url: `${server.url}/json`,
+      baselineFile,
+      schemaFile,
+      tool,
+    });
     expect(failing.schemaValidation?.valid).toBe(false);
     expect(failing.passed).toBe(false);
   });
@@ -144,29 +175,46 @@ describe('runContract', () => {
     const baselineFile = join(tempDir, 'update.json');
     await writeFile(
       baselineFile,
-      JSON.stringify({ apiforgeContract: 1, method: 'GET', url: '', capturedAt: '', shape: { type: 'object', properties: { stale: { type: 'string' } } } }),
+      JSON.stringify({
+        apiforgeContract: 1,
+        method: 'GET',
+        url: '',
+        capturedAt: '',
+        shape: { type: 'object', properties: { stale: { type: 'string' } } },
+      }),
     );
     const before = await runContract({ url: `${server.url}/json`, baselineFile, tool });
     expect(before.passed).toBe(false);
-    const after = await runContract({ url: `${server.url}/json`, baselineFile, update: true, tool });
+    const after = await runContract({
+      url: `${server.url}/json`,
+      baselineFile,
+      update: true,
+      tool,
+    });
     expect(after.snapshotUpdated).toBe(true);
     expect(after.passed).toBe(true);
   });
 
   it('rejects non-JSON responses with a clear error', async () => {
     const baselineFile = join(tempDir, 'text.json');
-    await expect(runContract({ url: `${server.url}/text`, baselineFile, tool })).rejects.toThrow(/requires a JSON response/);
+    await expect(runContract({ url: `${server.url}/text`, baselineFile, tool })).rejects.toThrow(
+      /requires a JSON response/,
+    );
   });
 
   it('rejects malformed baseline files', async () => {
     const baselineFile = join(tempDir, 'invalid.json');
     await writeFile(baselineFile, '{"apiforgeContract":1,"shape":{"nope":true}}');
-    await expect(runContract({ url: `${server.url}/json`, baselineFile, tool })).rejects.toThrow(/invalid "shape"/);
+    await expect(runContract({ url: `${server.url}/json`, baselineFile, tool })).rejects.toThrow(
+      /invalid "shape"/,
+    );
   });
 
   it('rejects unparseable baseline files', async () => {
     const baselineFile = join(tempDir, 'broken.json');
     await writeFile(baselineFile, '{not json');
-    await expect(runContract({ url: `${server.url}/json`, baselineFile, tool })).rejects.toThrow(/not valid JSON/);
+    await expect(runContract({ url: `${server.url}/json`, baselineFile, tool })).rejects.toThrow(
+      /not valid JSON/,
+    );
   });
 });

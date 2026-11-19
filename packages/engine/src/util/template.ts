@@ -71,11 +71,17 @@ function resolveBuiltin(expression: string, now: Date): { handled: boolean; valu
   }
   const stringMatch = /^\$random\.string\(\s*(\d+)\s*\)$/.exec(expression);
   if (stringMatch) {
-    return { handled: true, value: randomString(Math.min(1024, Number.parseInt(stringMatch[1] as string, 10))) };
+    return {
+      handled: true,
+      value: randomString(Math.min(1024, Number.parseInt(stringMatch[1] as string, 10))),
+    };
   }
   const hexMatch = /^\$random\.hex\(\s*(\d+)\s*\)$/.exec(expression);
   if (hexMatch) {
-    return { handled: true, value: randomHex(Math.min(1024, Number.parseInt(hexMatch[1] as string, 10))) };
+    return {
+      handled: true,
+      value: randomHex(Math.min(1024, Number.parseInt(hexMatch[1] as string, 10))),
+    };
   }
   return { handled: false };
 }
@@ -93,7 +99,11 @@ function stringifyValue(value: unknown): string {
   }
 }
 
-export function resolveExpression(expression: string, ctx: TemplateContext, options: RenderOptions = {}): unknown {
+export function resolveExpression(
+  expression: string,
+  ctx: TemplateContext,
+  options: RenderOptions = {},
+): unknown {
   const builtinsEnabled = options.builtins !== false;
   const now = ctx.now ?? new Date();
 
@@ -129,7 +139,11 @@ export function resolveExpression(expression: string, ctx: TemplateContext, opti
   return undefined;
 }
 
-export function renderTemplate(input: string, ctx: TemplateContext, options: RenderOptions = {}): string {
+export function renderTemplate(
+  input: string,
+  ctx: TemplateContext,
+  options: RenderOptions = {},
+): string {
   const strict = options.strict !== false;
   if (!input.includes('{{')) return input;
 
@@ -165,6 +179,57 @@ export function renderValue<T>(value: T, ctx: TemplateContext, options: RenderOp
     const out: Record<string, unknown> = {};
     for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
       out[key] = renderValue(entry, ctx, options);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+const SINGLE_PLACEHOLDER = /^\{\{\s*([^{}]+?)\s*\}\}$/;
+
+/**
+ * Like `renderValue`, but a string consisting of *exactly one* placeholder keeps
+ * the resolved value's native type:
+ *
+ *   expect: { id: "{{userId}}" }   // data row userId = 1  → number 1, not "1"
+ *
+ * This is what makes data-driven suites work with numbers and booleans: a CSV
+ * column is a string, but `equals: "{{userId}}"` must compare like a number
+ * when the reference holds one. Mixed strings ("prefix-{{id}}") still
+ * interpolate to text, which is the only sensible result.
+ */
+export function renderTypedValue<T>(
+  value: T,
+  ctx: TemplateContext,
+  options: RenderOptions = {},
+): T {
+  if (typeof value === 'string') {
+    const single = SINGLE_PLACEHOLDER.exec(value);
+    if (single) {
+      const expression = (single[1] ?? '').trim();
+      if (expression !== '') {
+        try {
+          const resolved = resolveExpression(expression, ctx, options);
+          if (resolved !== undefined) return resolved as T;
+          if (options.strict !== false) {
+            throw new ConfigError(`Unknown template variable "{{${expression}}}"`, [
+              'Define it in `variables`, the environment file, capture it from a previous test, or use `$env.NAME` for environment variables.',
+            ]);
+          }
+        } catch (error) {
+          if (options.strict !== false || error instanceof ConfigError) throw error;
+        }
+      }
+    }
+    return renderTemplate(value, ctx, options) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => renderTypedValue(entry, ctx, options)) as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = renderTypedValue(entry, ctx, options);
     }
     return out as T;
   }

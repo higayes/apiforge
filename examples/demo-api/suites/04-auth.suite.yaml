@@ -1,0 +1,93 @@
+# Authentication suite — bearer, basic, API key and token refresh.
+#
+# Demonstrates: `auth` blocks, secrets (never printed in reports), capturing a
+# token from a login step and reusing it, and how to verify that unauthorised
+# requests actually fail.
+#
+# The demo API accepts exactly one token; it is provided by the environment as
+# a *secret* so it is masked in reports:
+#     environments/local.yaml → secrets.demoToken
+name: Demo API - authentication
+description: Exercises bearer auth, token refresh and auth failure modes.
+
+tests:
+  - name: A login step issues a token
+    id: login
+    method: GET
+    path: /api/session
+    tags: [auth, token]
+    expect:
+      status: 200
+      headers:
+        cache-control: { contains: no-store }
+      jsonPath:
+        tokenType: { equals: Bearer }
+        token: { type: string, minLength: 1 }
+        expiresIn: { gte: 60 }
+    capture:
+      # `{{steps.login.token}}` now holds the token.
+      token: token
+
+  - name: Calling a protected endpoint without a token fails
+    method: GET
+    path: /api/secure
+    headers:
+      # Explicitly clear any inherited Authorization header.
+      authorization: ''
+    tags: [auth, negative]
+    expect:
+      status: 401
+      headers:
+        www-authenticate: { contains: Bearer }
+
+  - name: Bearer auth with an environment secret
+    method: GET
+    path: /api/secure
+    tags: [auth]
+    auth:
+      type: bearer
+      token: '{{secrets.demoToken}}'
+    expect:
+      status: 200
+      jsonPath:
+        ok: { equals: true }
+        scopes: { contains: read }
+
+  - name: Bearer auth using the refreshed token from the login step
+    method: GET
+    path: /api/secure
+    tags: [auth, token]
+    auth:
+      type: bearer
+      token: '{{steps.login.token}}'
+    expect:
+      status: 200
+      jsonPath:
+        user: { equals: demo }
+
+  - name: An invalid token is rejected with a clear challenge
+    method: GET
+    path: /api/secure
+    tags: [auth, negative]
+    auth:
+      type: bearer
+      token: definitely-not-valid
+    expect:
+      status: 401
+      headers:
+        www-authenticate: { contains: 'error="invalid_token"' }
+
+  - name: API keys can be sent as a header
+    method: GET
+    path: /api/headers
+    tags: [auth]
+    auth:
+      type: apikey
+      in: header
+      name: x-api-key
+      value: '{{secrets.demoToken}}'
+    expect:
+      status: 200
+      # The echo endpoint proves the header reached the server.
+      jsonPath:
+        headers.x-api-key: { equals: '{{secrets.demoToken}}' }

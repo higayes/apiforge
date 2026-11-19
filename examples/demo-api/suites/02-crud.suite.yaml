@@ -1,0 +1,107 @@
+# CRUD suite — request chaining with captures.
+#
+# Demonstrates: creating data, capturing values from a response
+# (`capture` → `{{steps.<id>.<path>}}`), reusing them in later requests,
+# PUT/PATCH/DELETE, and cleaning up after itself so reruns stay green.
+name: Demo API - CRUD lifecycle
+description: Creates a user, reads it back, updates it, then deletes it.
+
+variables:
+  # `{{$random.string(8)}}` keeps reruns independent.
+  suffix: '{{$random.string(8)}}'
+
+tests:
+  - name: Create a user
+    id: createUser
+    method: POST
+    path: /api/users
+    tags: [crud, write]
+    body:
+      json:
+        name: 'Ada {{suffix}}'
+        email: 'ada.{{suffix}}@example.com'
+        role: engineer
+    expect:
+      status: 201
+      headers:
+        location: { matches: ^/api/users/\d+$ }
+      jsonPath:
+        id: { type: number }
+        name: { contains: Ada }
+        role: { equals: engineer }
+        active: { equals: true }
+    capture:
+      # `{{steps.createUser.id}}` becomes available to every later test.
+      userId: id
+
+  - name: Read the user back
+    method: GET
+    path: /api/users/{{steps.createUser.userId}}
+    tags: [crud, read]
+    expect:
+      status: 200
+      jsonPath:
+        id: { equals: '{{steps.createUser.userId}}' }
+        name: { contains: Ada }
+
+  - name: Replace the user (PUT)
+    method: PUT
+    path: /api/users/{{steps.createUser.userId}}
+    tags: [crud, write]
+    body:
+      json:
+        name: Ada Replaced
+        email: replaced@example.com
+        role: admin
+    expect:
+      status: 200
+      jsonPath:
+        name: { equals: Ada Replaced }
+        role: { equals: admin }
+
+  - name: Patch a single field
+    method: PATCH
+    path: /api/users/{{steps.createUser.userId}}
+    tags: [crud, write]
+    body:
+      json:
+        active: false
+    expect:
+      status: 200
+      jsonPath:
+        active: { equals: false }
+        # Untouched fields must survive a partial update.
+        role: { equals: admin }
+
+  - name: Validation rejects an empty name
+    method: POST
+    path: /api/users
+    tags: [crud, validation]
+    body:
+      json:
+        name: ''
+    expect:
+      status: 422
+      jsonPath:
+        error: { equals: validation failed }
+        fields.name: { equals: required }
+
+  - name: Delete the user
+    id: deleteUser
+    method: DELETE
+    path: /api/users/{{steps.createUser.userId}}
+    tags: [crud, cleanup]
+    expect:
+      status: 204
+      body:
+        # A 204 must not carry a body.
+        equals: ''
+
+  - name: The deleted user is gone
+    method: GET
+    path: /api/users/{{steps.createUser.userId}}
+    tags: [crud, cleanup]
+    expect:
+      status: 404
+      jsonPath:
+        error: { equals: not found }

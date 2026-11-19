@@ -26,7 +26,10 @@ export function buildTestReport(options: BuildTestReportOptions): TestReport {
     { total: 0, passed: 0, failed: 0, skipped: 0, errored: 0, durationMs: 0 },
   );
 
-  const thresholds = [...suites.flatMap((suite) => suite.thresholds), ...(options.projectThresholds ?? [])];
+  const thresholds = [
+    ...suites.flatMap((suite) => suite.thresholds),
+    ...(options.projectThresholds ?? []),
+  ];
 
   return {
     kind: 'test',

@@ -5,12 +5,7 @@
  *
  * Secret-bearing headers and values are redacted before serialization.
  */
-import type {
-  ContractReport,
-  PerformanceReport,
-  SecurityReport,
-  TestReport,
-} from '../types.js';
+import type { ContractReport, PerformanceReport, SecurityReport, TestReport } from '../types.js';
 import { redactHeaders, redactBodyText, REDACTED } from '../util/redaction.js';
 
 function sanitizeNotification(report: TestReport): TestReport {

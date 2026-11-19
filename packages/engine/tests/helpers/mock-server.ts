@@ -26,12 +26,25 @@ export interface MockServer {
   reset(): void;
 }
 
-type Handler = (req: IncomingMessage, res: ServerResponse, body: string, server: MockServer) => void | Promise<void>;
+type Handler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  body: string,
+  server: MockServer,
+) => void | Promise<void>;
 
 const routes: Record<string, Handler> = {
   'GET /json': (_req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ id: 42, name: 'Ada Lovelace', tags: ['math', 'computing'], nested: { active: true }, score: 99.5 }));
+    res.end(
+      JSON.stringify({
+        id: 42,
+        name: 'Ada Lovelace',
+        tags: ['math', 'computing'],
+        nested: { active: true },
+        score: 99.5,
+      }),
+    );
   },
   'GET /json/broken': (_req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' });
@@ -157,7 +170,13 @@ const routes: Record<string, Handler> = {
       'access-control-allow-origin': '*',
       'set-cookie': 'session=abc123; Path=/',
     });
-    res.end(JSON.stringify({ debug: 'SQLSyntaxErrorException: near "SELECT"', token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U' }));
+    res.end(
+      JSON.stringify({
+        debug: 'SQLSyntaxErrorException: near "SELECT"',
+        token:
+          'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+      }),
+    );
   },
   'GET /cookies/set': (_req, res) => {
     res.setHeader('Set-Cookie', [
@@ -185,7 +204,10 @@ const routes: Record<string, Handler> = {
       res.end('{"authenticated":true}');
       return;
     }
-    res.writeHead(401, { 'content-type': 'application/json', 'www-authenticate': 'Bearer realm="mock"' });
+    res.writeHead(401, {
+      'content-type': 'application/json',
+      'www-authenticate': 'Bearer realm="mock"',
+    });
     res.end('{"error":"unauthorized"}');
   },
   'GET /auth/basic': (req, res) => {
@@ -200,7 +222,10 @@ const routes: Record<string, Handler> = {
   },
   'GET /auth/apikey': (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (req.headers['x-api-key'] === 'key-from-header' || url.searchParams.get('api_key') === 'key-from-query') {
+    if (
+      req.headers['x-api-key'] === 'key-from-header' ||
+      url.searchParams.get('api_key') === 'key-from-query'
+    ) {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end('{"authenticated":true}');
       return;
@@ -224,7 +249,10 @@ const routes: Record<string, Handler> = {
     res.end('{"ok":true}');
   },
   'OPTIONS /methods': (_req, res) => {
-    res.writeHead(204, { allow: 'GET, HEAD, OPTIONS', 'access-control-allow-methods': 'GET, HEAD, POST, PUT, DELETE' });
+    res.writeHead(204, {
+      allow: 'GET, HEAD, OPTIONS',
+      'access-control-allow-methods': 'GET, HEAD, POST, PUT, DELETE',
+    });
     res.end();
   },
   'GET /unicode': (_req, res) => {
@@ -264,7 +292,13 @@ export async function startMockServer(options: { host?: string } = {}): Promise<
       const userMatch = /^\/users\/(\d+)$/.exec(pathname);
       if (userMatch && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ id: Number(userMatch[1]), name: 'Grace Hopper', email: 'grace@example.com' }));
+        res.end(
+          JSON.stringify({
+            id: Number(userMatch[1]),
+            name: 'Grace Hopper',
+            email: 'grace@example.com',
+          }),
+        );
         return;
       }
 

@@ -28,12 +28,26 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       eqeqeq: ['error', 'smart'],
       'no-console': 'off',
+      // Terminal/XML sanitising legitimately matches control and ANSI bytes.
+      'no-control-regex': 'off',
+      'no-regex-spaces': 'off',
     },
   },
   {
     files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
-      globals: { console: 'readonly', process: 'readonly', URL: 'readonly' },
+      // Plain Node scripts (examples runner, smoke test, demo server).
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+        Buffer: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
     },
   },
 );

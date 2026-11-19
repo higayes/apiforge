@@ -1,0 +1,33 @@
+# Bounded performance test for the example API.
+#
+# Safe defaults on purpose: 5 virtual users, 5 seconds, and a hard cap on total
+# requests. APIFORGE refuses to run unbounded load — at least one of
+# `durationSeconds` or `maxRequests` must be set, and both are capped.
+baseUrl: http://127.0.0.1:4010 # override per environment
+
+target:
+  method: GET
+  path: /api/users
+  query:
+    limit: 5
+
+concurrency: 5 # 1..100
+durationSeconds: 5 # 1..3600
+maxRequests: 500 # absolute safety ceiling
+timeoutMs: 2000
+thinkTimeMs: 50 # pause per virtual user between requests
+warmupRequests: 10
+
+thresholds:
+  - metric: p95
+    max: 300
+    description: 95th percentile latency under 300 ms
+  - metric: p99
+    max: 800
+    description: tail latency under 800 ms
+  - metric: errorRate
+    max: 0
+    description: No failed requests
+  - metric: rps
+    min: 5
+    description: Throughput must stay above 5 requests/second

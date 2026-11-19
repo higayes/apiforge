@@ -98,7 +98,12 @@ export {
   looksLikeEnvironment,
   PROJECT_FILE_NAMES,
 } from './config/project.js';
-export type { ProjectContext, LoadedSuite, LoadedEnvironment, LoadProjectOptions } from './config/project.js';
+export type {
+  ProjectContext,
+  LoadedSuite,
+  LoadedEnvironment,
+  LoadProjectOptions,
+} from './config/project.js';
 
 /* HTTP */
 export {
@@ -113,7 +118,13 @@ export {
 export type { HttpRequestOptions, HttpResponseData, PreparedBody } from './http/client.js';
 
 /* Test engine */
-export { runSuite, parseCsv, mergeStepValues, BODY_PREVIEW_LIMIT } from './test/runner.js';
+export {
+  runSuite,
+  parseCsv,
+  coerceCsvScalar,
+  mergeStepValues,
+  BODY_PREVIEW_LIMIT,
+} from './test/runner.js';
 export type { RunnerOptions } from './test/runner.js';
 export { buildTestReport } from './test/report.js';
 export type { BuildTestReportOptions } from './test/report.js';
@@ -124,10 +135,19 @@ export type { ThresholdInput } from './test/thresholds.js';
 export { evaluateExpect } from './assertions/expect.js';
 export type { AssertionContextData } from './assertions/expect.js';
 export { evaluateValueCheck, evaluateJsonPathChecks } from './assertions/value-check.js';
-export { validateJsonSchema, dereferenceLocalRefs, checkSchemaCompiles } from './assertions/json-schema.js';
+export {
+  validateJsonSchema,
+  dereferenceLocalRefs,
+  checkSchemaCompiles,
+} from './assertions/json-schema.js';
 
 /* Performance */
-export { runPerformance, computeStats, MAX_CONCURRENCY, DEFAULT_CONCURRENCY } from './performance/runner.js';
+export {
+  runPerformance,
+  computeStats,
+  MAX_CONCURRENCY,
+  DEFAULT_CONCURRENCY,
+} from './performance/runner.js';
 export type { PerformanceRunOptions, PerformanceProgress } from './performance/runner.js';
 
 /* Security */
@@ -157,9 +177,19 @@ export { importOpenApiDocument, extractJsonSchemaForOperation } from './openapi/
 export type { ImportOptions, ImportResult } from './openapi/importer.js';
 
 /* Reporting */
-export { renderTestReport, renderPerformanceReport, renderSecurityReport, renderContractReport } from './report/terminal.js';
+export {
+  renderTestReport,
+  renderPerformanceReport,
+  renderSecurityReport,
+  renderContractReport,
+} from './report/terminal.js';
 export type { TerminalRenderOptions } from './report/terminal.js';
-export { renderTestJson, renderPerformanceJson, renderSecurityJson, renderContractJson } from './report/json.js';
+export {
+  renderTestJson,
+  renderPerformanceJson,
+  renderSecurityJson,
+  renderContractJson,
+} from './report/json.js';
 export { renderJUnit } from './report/junit.js';
 export {
   renderTestHtml,
@@ -174,7 +204,12 @@ export { createPalette, detectColorSupport, severityColor } from './report/color
 export type { Palette } from './report/color.js';
 
 /* Utilities useful to integrations */
-export { renderTemplate, renderValue, resolveExpression, findPlaceholders } from './util/template.js';
+export {
+  renderTemplate,
+  renderValue,
+  resolveExpression,
+  findPlaceholders,
+} from './util/template.js';
 export type { TemplateContext, RenderOptions } from './util/template.js';
 export { getPath, setPath, hasPath, parsePath } from './util/path.js';
 export {
@@ -192,5 +227,12 @@ export { computeLatencyStats, percentile, round } from './util/stats.js';
 export { unifiedDiff, diffJson, formatValue } from './util/diff.js';
 export { createLogger, silentLogger } from './util/logger.js';
 export type { Logger, LogLevel } from './util/logger.js';
-export { formatDuration, formatBytes, escapeHtml, renderTable, toSlug, fileTimestamp } from './util/text.js';
+export {
+  formatDuration,
+  formatBytes,
+  escapeHtml,
+  renderTable,
+  toSlug,
+  fileTimestamp,
+} from './util/text.js';
 export { setLogger } from './logger-holder.js';

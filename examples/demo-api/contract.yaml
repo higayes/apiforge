@@ -1,0 +1,14 @@
+# Contract regression: capture the response shape once, then fail when a later
+# change removes fields or alters their types. Baselines live in
+# .apiforge/contracts and should be committed.
+baseUrl: http://127.0.0.1:4010
+
+target:
+  method: GET
+  path: /api/users
+
+baseline: .apiforge/contracts/demo-users.json
+
+# The very first run creates the baseline; subsequent runs compare against it.
+# `--update` (CLI) or `update: true` rewrites it deliberately.
+update: false

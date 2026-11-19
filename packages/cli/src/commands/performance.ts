@@ -15,7 +15,6 @@ import { createUiFromCommand } from '../lib/context.js';
 import {
   assertHttpUrl,
   parseHeaders,
-  parseKeyValuePairs,
   parseIntInRange,
   parseNumberInRange,
   parseTimeout,
@@ -112,19 +111,39 @@ export function registerPerformanceCommand(program: Command): void {
                 ...(Object.keys(headers).length > 0 ? { headers } : {}),
                 ...(body ? { body } : {}),
               },
-              ...(options.concurrency ? { concurrency: parseIntInRange(options.concurrency, '--concurrency', 1, 100) } : {}),
-              ...(options.duration ? { durationSeconds: parseNumberInRange(options.duration, '--duration', 0.001, 3600) } : {}),
-              ...(options.requests ? { maxRequests: parseIntInRange(options.requests, '--requests', 1, 100_000) } : {}),
+              ...(options.concurrency
+                ? { concurrency: parseIntInRange(options.concurrency, '--concurrency', 1, 100) }
+                : {}),
+              ...(options.duration
+                ? {
+                    durationSeconds: parseNumberInRange(
+                      options.duration,
+                      '--duration',
+                      0.001,
+                      3600,
+                    ),
+                  }
+                : {}),
+              ...(options.requests
+                ? { maxRequests: parseIntInRange(options.requests, '--requests', 1, 100_000) }
+                : {}),
               ...(options.timeout ? { timeoutMs: parseTimeout(options.timeout) } : {}),
-              ...(options.thinkTime ? { thinkTimeMs: parseTimeout(options.thinkTime, '--think-time') } : {}),
-              ...(options.warmup ? { warmupRequests: parseIntInRange(options.warmup, '--warmup', 0, 1000) } : {}),
+              ...(options.thinkTime
+                ? { thinkTimeMs: parseTimeout(options.thinkTime, '--think-time') }
+                : {}),
+              ...(options.warmup
+                ? { warmupRequests: parseIntInRange(options.warmup, '--warmup', 0, 1000) }
+                : {}),
             },
             'command line options',
           );
 
           const thresholds = [];
           if (options.expectP95) {
-            thresholds.push({ metric: 'p95' as const, max: parseNumberInRange(options.expectP95, '--expect-p95', 0, 600_000) });
+            thresholds.push({
+              metric: 'p95' as const,
+              max: parseNumberInRange(options.expectP95, '--expect-p95', 0, 600_000),
+            });
           }
           if (options.expectErrorRate) {
             thresholds.push({
@@ -133,7 +152,10 @@ export function registerPerformanceCommand(program: Command): void {
             });
           }
           if (options.expectMinRps) {
-            thresholds.push({ metric: 'rps' as const, min: parseNumberInRange(options.expectMinRps, '--expect-min-rps', 0, 1_000_000) });
+            thresholds.push({
+              metric: 'rps' as const,
+              min: parseNumberInRange(options.expectMinRps, '--expect-min-rps', 0, 1_000_000),
+            });
           }
           if (thresholds.length > 0) spec = { ...spec, thresholds };
         }
@@ -143,21 +165,37 @@ export function registerPerformanceCommand(program: Command): void {
         if (Object.keys(extraHeaders).length > 0) {
           spec = {
             ...spec,
-            target: { ...spec.target, headers: { ...(spec.target.headers ?? {}), ...extraHeaders } },
+            target: {
+              ...spec.target,
+              headers: { ...(spec.target.headers ?? {}), ...extraHeaders },
+            },
           };
         }
         if (!spec.target.url && !spec.target.path) {
           throw new ConfigError('The performance target needs a `url` (or `path` plus a base URL)');
         }
-        // Paths without a base URL are rejected explicitly rather than guessing.
-        const targetUrl = spec.target.url ?? spec.target.path ?? '';
+        // A relative `path` is joined onto the spec's `baseUrl`. Without one we
+        // refuse rather than guessing a host.
+        let targetUrl = spec.target.url ?? '';
+        if (!targetUrl) {
+          const path = spec.target.path ?? '';
+          if (!spec.baseUrl) {
+            throw new ConfigError(
+              `The performance target uses a relative path ("${path}") but no base URL is configured`,
+              ['Add `baseUrl: https://api.example.com` to the spec, or use a full `target.url`.'],
+            );
+          }
+          targetUrl = new URL(path, spec.baseUrl).toString();
+        }
         assertHttpUrl(targetUrl, 'performance target');
 
         if (!spec.durationSeconds && !spec.maxRequests) {
           ui.warn(`No --duration or --requests given; running for the default of 10 seconds.`);
         }
         if (!spec.durationSeconds && spec.maxRequests && spec.maxRequests > 10_000) {
-          ui.warn(`Large request limit (${spec.maxRequests}). Only run load tests against systems you own.`);
+          ui.warn(
+            `Large request limit (${spec.maxRequests}). Only run load tests against systems you own.`,
+          );
         }
 
         ui.banner(TOOL_INFO.version);
@@ -190,7 +228,9 @@ export function registerPerformanceCommand(program: Command): void {
             ...(spec.target.auth ? { auth: spec.target.auth } : {}),
             ...(spec.target.body ? { body: spec.target.body } : {}),
             concurrency: spec.concurrency,
-            ...(spec.durationSeconds !== undefined ? { durationSeconds: spec.durationSeconds } : {}),
+            ...(spec.durationSeconds !== undefined
+              ? { durationSeconds: spec.durationSeconds }
+              : {}),
             ...(spec.maxRequests !== undefined ? { maxRequests: spec.maxRequests } : {}),
             timeoutMs: spec.timeoutMs,
             thinkTimeMs: spec.thinkTimeMs,

@@ -74,7 +74,9 @@ export async function runContract(options: ContractRunOptions): Promise<Contract
   if (response.json === undefined) {
     throw new ConfigError('Contract testing requires a JSON response body', [
       `Received HTTP ${response.status} with content-type "${response.headers['content-type'] ?? 'unknown'}"`,
-      response.jsonParseError ? `JSON parse error: ${response.jsonParseError}` : 'Body was empty or not JSON.',
+      response.jsonParseError
+        ? `JSON parse error: ${response.jsonParseError}`
+        : 'Body was empty or not JSON.',
     ]);
   }
 
@@ -86,7 +88,8 @@ export async function runContract(options: ContractRunOptions): Promise<Contract
   try {
     baseline = await readJsonFile<BaselineFile>(options.baselineFile, 'Contract baseline');
   } catch (error) {
-    if (error instanceof ConfigError && error.message.startsWith('Contract baseline not found')) exists = false;
+    if (error instanceof ConfigError && error.message.startsWith('Contract baseline not found'))
+      exists = false;
     else throw error;
   }
 
@@ -96,7 +99,10 @@ export async function runContract(options: ContractRunOptions): Promise<Contract
 
   let schemaValidation: { valid: boolean; errors: string[] } | undefined;
   if (options.schemaFile) {
-    const schemaDocument = await readJsonFile<Record<string, unknown>>(options.schemaFile, 'JSON Schema');
+    const schemaDocument = await readJsonFile<Record<string, unknown>>(
+      options.schemaFile,
+      'JSON Schema',
+    );
     const dereferenced = dereferenceLocalRefs(schemaDocument) as Record<string, unknown>;
     schemaValidation = validateJsonSchema(dereferenced, response.json);
   }

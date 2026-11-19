@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { extractJsonSchemaForOperation, importOpenApiDocument } from '../../src/openapi/importer.js';
+import {
+  extractJsonSchemaForOperation,
+  importOpenApiDocument,
+} from '../../src/openapi/importer.js';
 import { ConfigError } from '../../src/errors.js';
 
 const openapi3 = {
@@ -12,13 +15,23 @@ const openapi3 = {
         operationId: 'listPets',
         summary: 'List all pets',
         tags: ['pets'],
-        parameters: [{ name: 'limit', in: 'query', required: false, schema: { type: 'integer', maximum: 100 } }],
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            required: false,
+            schema: { type: 'integer', maximum: 100 },
+          },
+        ],
         responses: {
           '200': {
             description: 'ok',
             content: {
               'application/json': {
-                schema: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' } } } },
+                schema: {
+                  type: 'array',
+                  items: { type: 'object', properties: { id: { type: 'integer' } } },
+                },
               },
             },
           },
@@ -64,7 +77,10 @@ describe('importOpenApiDocument — OpenAPI 3', () => {
     expect(operationCount).toBe(4);
     expect(suite.baseUrl).toBe('https://api.petstore.example.com/v1');
     expect(suite.name).toBe('Pet Store');
-    expect(warnings).toEqual(['DELETE /pets/{petId}: path parameter "petId" has no example value; using "string".']);
+    expect(warnings).toEqual([
+      'POST /pets: the request body was filled with schema-derived placeholder values — replace them with real data before relying on this test.',
+      'DELETE /pets/{petId}: path parameter "petId" has no example value; using "string".',
+    ]);
 
     const listPets = suite.tests.find((test) => test.name === 'listPets');
     expect(listPets?.method).toBe('GET');
@@ -81,7 +97,9 @@ describe('importOpenApiDocument — OpenAPI 3', () => {
     const fetchPet = suite.tests.find((test) => test.name === 'GET /pets/{petId}');
     expect(fetchPet?.path).toBe('/pets/9');
 
-    expect(suite.tests.some((test) => test.name === 'deletePet' && test.expect?.status === 204)).toBe(true);
+    expect(
+      suite.tests.some((test) => test.name === 'deletePet' && test.expect?.status === 204),
+    ).toBe(true);
   });
 
   it('skips deprecated operations', () => {
@@ -120,8 +138,24 @@ describe('importOpenApiDocument — Swagger 2.0 and edge cases', () => {
         '/items': {
           post: {
             consumes: ['application/json'],
-            parameters: [{ name: 'body', in: 'body', required: true, schema: { type: 'object', required: ['sku'], properties: { sku: { type: 'string' } } } }],
-            responses: { '201': { description: 'created', schema: { type: 'object', properties: { id: { type: 'integer' } } } } },
+            parameters: [
+              {
+                name: 'body',
+                in: 'body',
+                required: true,
+                schema: {
+                  type: 'object',
+                  required: ['sku'],
+                  properties: { sku: { type: 'string' } },
+                },
+              },
+            ],
+            responses: {
+              '201': {
+                description: 'created',
+                schema: { type: 'object', properties: { id: { type: 'integer' } } },
+              },
+            },
           },
         },
       },
@@ -133,16 +167,24 @@ describe('importOpenApiDocument — Swagger 2.0 and edge cases', () => {
 
   it('rejects non-OpenAPI documents', () => {
     expect(() => importOpenApiDocument({})).toThrow(ConfigError);
-    expect(() => importOpenApiDocument({ openapi: '4.0.0' })).toThrow(/Unsupported OpenAPI version/);
+    expect(() => importOpenApiDocument({ openapi: '4.0.0' })).toThrow(
+      /Unsupported OpenAPI version/,
+    );
     expect(() => importOpenApiDocument(null)).toThrow(/must be a JSON\/YAML object/);
   });
 
   it('fails when no operations match', () => {
-    expect(() => importOpenApiDocument(openapi3, { tags: ['nope'] })).toThrow(/No importable operations/);
+    expect(() => importOpenApiDocument(openapi3, { tags: ['nope'] })).toThrow(
+      /No importable operations/,
+    );
   });
 
   it('warns when servers are missing', () => {
-    const { warnings, suite } = importOpenApiDocument({ openapi: '3.0.0', info: { title: 'T' }, paths: { '/x': { get: { responses: { '200': {} } } } } });
+    const { warnings, suite } = importOpenApiDocument({
+      openapi: '3.0.0',
+      info: { title: 'T' },
+      paths: { '/x': { get: { responses: { '200': {} } } } },
+    });
     expect(warnings.join(' ')).toContain('no `servers`');
     expect(suite.baseUrl).toBeUndefined();
   });
@@ -153,13 +195,17 @@ describe('importOpenApiDocument — Swagger 2.0 and edge cases', () => {
       info: { title: 'Refs' },
       servers: [{ url: 'https://x.dev' }],
       components: {
-        schemas: { NewPet: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } } },
+        schemas: {
+          NewPet: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } },
+        },
       },
       paths: {
         '/pets': {
           post: {
             operationId: 'create',
-            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/NewPet' } } } },
+            requestBody: {
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/NewPet' } } },
+            },
             responses: { '201': { description: 'created' } },
           },
         },
@@ -215,7 +261,12 @@ describe('importOpenApiDocument — Swagger 2.0 and edge cases', () => {
       },
     });
     expect(suite.tests[0]?.body).toEqual({
-      json: { role: 'admin', email: 'user@example.com', created: '2024-01-01T00:00:00Z', flag: true },
+      json: {
+        role: 'admin',
+        email: 'user@example.com',
+        created: '2024-01-01T00:00:00Z',
+        flag: true,
+      },
     });
   });
 });

@@ -1,0 +1,13 @@
+# Local development: talks to `node scripts/demo-server.mjs`.
+name: Local
+baseUrl: http://127.0.0.1:4010
+timeoutMs: 5000
+
+variables:
+  apiVersion: v1
+  demoUserRole: viewer
+
+secrets:
+  # Demo-only token. Real tokens belong in CI secrets or your shell:
+  #   export APIFORGE_DEMO_TOKEN=...
+  demoToken: ${APIFORGE_DEMO_TOKEN:-demo-token}

@@ -1,0 +1,28 @@
+# Defensive security posture scan.
+#
+# Read-only checks against responses the API already returns. Nothing here
+# attempts to exploit, fuzz, brute-force or modify state — the goal is a
+# reviewable report, not an attack.
+baseUrl: http://127.0.0.1:4010
+
+target:
+  method: GET
+  path: /api/hardened
+
+# Fail the command when a finding at this severity or above is present.
+threshold: high
+
+checks:
+  # The TLS check is disabled for this example because the demo server speaks
+  # plain HTTP on loopback by design. Against a real deployment, leave it on —
+  # it is one of the highest-value findings (unencrypted traffic).
+  tls: false
+  headers: true # HSTS, CSP, X-Content-Type-Options, frame options, referrer policy
+  cors:
+    origin: https://app.example.com
+    withCredentials: true
+  cookies: true # Secure / HttpOnly / SameSite attributes
+  disclosure: true # stack traces, debug flags, secrets in payloads
+  auth: true # WWW-Authenticate quality on protected routes
+  methods:
+    methods: [TRACE, DELETE, PATCH]

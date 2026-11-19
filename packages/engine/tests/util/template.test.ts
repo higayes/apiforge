@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError } from '../../src/errors.js';
-import { findPlaceholders, hasTemplate, renderTemplate, renderValue, resolveExpression } from '../../src/util/template.js';
+import {
+  findPlaceholders,
+  hasTemplate,
+  renderTemplate,
+  renderValue,
+  resolveExpression,
+} from '../../src/util/template.js';
 
 describe('renderTemplate', () => {
   const ctx = {
@@ -36,8 +42,12 @@ describe('renderTemplate', () => {
     expect(n).toBeGreaterThanOrEqual(10);
     expect(n).toBeLessThanOrEqual(20);
     expect(renderTemplate('{{$random.hex(8)}}', ctx)).toMatch(/^[0-9a-f]{8}$/);
-    expect(renderTemplate('{{$now.unix}}', { ...ctx, now: new Date('2024-01-01T00:00:00Z') })).toBe('1704067200');
-    expect(renderTemplate('{{$now.iso}}', { ...ctx, now: new Date('2024-01-01T00:00:00Z') })).toBe('2024-01-01T00:00:00.000Z');
+    expect(renderTemplate('{{$now.unix}}', { ...ctx, now: new Date('2024-01-01T00:00:00Z') })).toBe(
+      '1704067200',
+    );
+    expect(renderTemplate('{{$now.iso}}', { ...ctx, now: new Date('2024-01-01T00:00:00Z') })).toBe(
+      '2024-01-01T00:00:00.000Z',
+    );
   });
 
   it('throws a ConfigError for unknown variables in strict mode', () => {
@@ -50,7 +60,9 @@ describe('renderTemplate', () => {
   });
 
   it('fails clearly when an $env variable is missing', () => {
-    expect(() => renderTemplate('{{$env.DEFINITELY_NOT_SET_XYZ}}', ctx)).toThrow(/DEFINITELY_NOT_SET_XYZ/);
+    expect(() => renderTemplate('{{$env.DEFINITELY_NOT_SET_XYZ}}', ctx)).toThrow(
+      /DEFINITELY_NOT_SET_XYZ/,
+    );
   });
 
   it('serializes objects and arrays as JSON', () => {
@@ -66,7 +78,12 @@ describe('renderTemplate', () => {
 describe('renderValue', () => {
   it('deeply renders strings inside nested structures', () => {
     const ctx = { variables: { id: 'u-1' } };
-    const input = { url: '/users/{{id}}', headers: { 'x-id': '{{id}}' }, list: ['{{id}}', 5, { deep: 'a-{{id}}' }], count: 2 };
+    const input = {
+      url: '/users/{{id}}',
+      headers: { 'x-id': '{{id}}' },
+      list: ['{{id}}', 5, { deep: 'a-{{id}}' }],
+      count: 2,
+    };
     expect(renderValue(input, ctx)).toEqual({
       url: '/users/u-1',
       headers: { 'x-id': 'u-1' },

@@ -1,0 +1,63 @@
+# Data-driven suite — one test definition, many rows of input.
+#
+# Demonstrates: `dataFile` (CSV and JSON arrays), `data` inline tables, and
+# `{{dataRow}}` for row numbering in the report. Each row becomes its own test
+# case with its own result, so failures name the exact row.
+name: Demo API - data-driven lookups
+description: Parameterised reads driven by CSV and JSON data files.
+
+tests:
+  - name: Look up user from CSV
+    method: GET
+    path: /api/users/{{userId}}
+    tags: [data-driven, users]
+    dataFile: ../data/users.csv
+    expect:
+      status: 200
+      jsonPath:
+        id: { equals: '{{userId}}' }
+        name: { equals: '{{expectedName}}' }
+        role: { equals: '{{expectedRole}}' }
+
+  - name: Look up user from JSON
+    method: GET
+    path: /api/users/{{userId}}
+    tags: [data-driven, users]
+    dataFile: ../data/users-lookup.json
+    expect:
+      status: 200
+      jsonPath:
+        id: { equals: '{{userId}}' }
+        role: { equals: '{{expectedRole}}' }
+
+  # Page *size* is asserted rather than page counts: the demo server keeps
+  # state in memory for its lifetime, and other suites create users. Sizing the
+  # first page keeps this suite independent of how many users exist.
+  - name: Inline table of page sizes
+    method: GET
+    path: /api/users
+    tags: [data-driven, pagination]
+    query:
+      page: '1'
+      limit: '{{limit}}'
+    data:
+      - { limit: 1, expected: 1 }
+      - { limit: 2, expected: 2 }
+      - { limit: 3, expected: 3 }
+    expect:
+      status: 200
+      jsonPath:
+        data: { type: array, length: '{{expected}}' }
+        meta.limit: { equals: '{{limit}}' }
+
+  - name: Missing users return 404 for every id
+    method: GET
+    path: /api/users/{{userId}}
+    tags: [data-driven, errors]
+    data:
+      - { userId: 90001 }
+      - { userId: 90002 }
+    expect:
+      status: 404
+      jsonPath:
+        error: { equals: not found }

@@ -11,7 +11,10 @@ export const EXIT_INTERRUPTED = 130;
 
 export const EXIT_CODE_DOCS: ReadonlyArray<{ code: number; meaning: string }> = [
   { code: EXIT_SUCCESS, meaning: 'All checks passed' },
-  { code: EXIT_CHECKS_FAILED, meaning: 'Tests, thresholds, performance, security or contract checks failed' },
+  {
+    code: EXIT_CHECKS_FAILED,
+    meaning: 'Tests, thresholds, performance, security or contract checks failed',
+  },
   { code: EXIT_USAGE, meaning: 'Invalid command-line usage' },
   { code: EXIT_CONFIG, meaning: 'Configuration, suite, environment or input-file error' },
   { code: EXIT_NETWORK, meaning: 'Unrecoverable network/setup failure (e.g. unreachable target)' },

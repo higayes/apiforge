@@ -15,13 +15,21 @@ import type { Ui } from '../ui.js';
 
 export const ALLOWED_FORMATS: readonly ReportFormat[] = ['terminal', 'json', 'html', 'junit'];
 
-export function parseFormats(values: string[] | undefined, fallback: ReportFormat[]): ReportFormat[] {
+export function parseFormats(
+  values: string[] | undefined,
+  fallback: ReportFormat[],
+): ReportFormat[] {
   if (!values || values.length === 0) return fallback;
   const formats = new Set<ReportFormat>();
   for (const raw of values) {
-    for (const part of raw.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean)) {
+    for (const part of raw
+      .split(',')
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean)) {
       if (!ALLOWED_FORMATS.includes(part as ReportFormat)) {
-        throw new UsageError(`Unknown report format "${part}"`, [`Supported formats: ${ALLOWED_FORMATS.join(', ')}`]);
+        throw new UsageError(`Unknown report format "${part}"`, [
+          `Supported formats: ${ALLOWED_FORMATS.join(', ')}`,
+        ]);
       }
       formats.add(part as ReportFormat);
     }
@@ -75,7 +83,9 @@ export async function emitReport(report: AnyReport, options: EmitOptions): Promi
       });
       artifacts.push(...written);
     } catch (error) {
-      throw error instanceof ReportError ? error : new ReportError('Could not write reports', [String((error as Error).message)]);
+      throw error instanceof ReportError
+        ? error
+        : new ReportError('Could not write reports', [String((error as Error).message)]);
     }
     if (!wantsJsonStdout && !ui.quiet) {
       for (const artifact of artifacts) {

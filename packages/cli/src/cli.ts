@@ -9,7 +9,7 @@
 import { Command } from 'commander';
 import { closeHttpResources, toApiForgeError, UsageError } from '@apiforge/engine';
 import { CLI_VERSION } from './lib/version.js';
-import { EXIT_CODE_DOCS, EXIT_USAGE } from './exit-codes.js';
+import { EXIT_CODE_DOCS } from './exit-codes.js';
 import { formatCliError } from './errors.js';
 import { createUiFromCommand } from './lib/context.js';
 import { registerInitCommand } from './commands/init.js';
@@ -22,17 +22,22 @@ import { registerReportCommand } from './commands/report.js';
 import { registerImportCommand } from './commands/import.js';
 import { registerValidateCommand } from './commands/validate.js';
 import { registerEnvCommand } from './commands/env.js';
-import { registerCompletionCommand, registerExitCodesCommand, registerVersionCommand } from './commands/meta.js';
+import {
+  registerCompletionCommand,
+  registerExitCodesCommand,
+  registerVersionCommand,
+} from './commands/meta.js';
 
 export function buildProgram(): Command {
   const program = new Command();
 
   program
     .name('apiforge')
-    .description('APIFORGE — test smarter. Ship with confidence.\n\nAPI testing, validation, performance and security analysis.')
+    .description(
+      'APIFORGE — test smarter. Ship with confidence.\n\nAPI testing, validation, performance and security analysis.',
+    )
     .version(CLI_VERSION, '-V, --version', 'print the version and exit')
     .helpOption('-h, --help', 'display help for a command')
-    .showHelpAfterError('(add --help for additional information)')
     .showSuggestionAfterError(true)
     .configureHelp({ sortSubcommands: false })
     .addHelpText(
@@ -55,6 +60,33 @@ Documentation: https://github.com/apiforge/apiforge
 `,
     );
 
+  // IMPORTANT: configure this *before* the subcommands are created. Commander
+  // copies inherited settings (including the exit callback) at instantiation
+  // time, so doing it afterwards would leave every subcommand calling
+  // `process.exit()` directly and bypassing our error rendering.
+  program.exitOverride((error) => {
+    if (
+      error.code === 'commander.helpDisplayed' ||
+      error.code === 'commander.version' ||
+      error.code === 'commander.help'
+    ) {
+      return;
+    }
+    throw error;
+  });
+  program.configureOutput({
+    writeErr: (text: string) => {
+      // Commander's own `error: …` echo is suppressed: `main()` renders the
+      // problem exactly once, in the documented format and exit code.
+      if (text.startsWith('error:')) return;
+      // The suggestion is emitted as its own chunk (`(Did you mean …?)` or
+      // `(Did you mean one of …?)`), possibly with a leading newline. It is
+      // already rendered as a hint bullet, so drop the duplicate.
+      if (/^\(?\s*Did you mean\b/m.test(text)) return;
+      process.stderr.write(text);
+    },
+  });
+
   registerInitCommand(program);
   registerTestCommand(program);
   registerRunCommand(program);
@@ -69,16 +101,48 @@ Documentation: https://github.com/apiforge/apiforge
   registerExitCodesCommand(program);
   registerCompletionCommand(program);
 
-  // Unknown commands should fail with a usage error, not a stack trace.
-  program.on('command:*', (operands: string[]) => {
-    const ui = createUiFromCommand({});
-    const unknown = operands[0] ?? '';
-    process.stderr.write(formatCliError(new UsageError(`Unknown command "${unknown}"`), ui));
-    process.stderr.write('\n');
-    process.exit(EXIT_USAGE);
-  });
-
   return program;
+}
+
+/**
+ * Convert Commander's own errors into `UsageError`s with helpful hints so they
+ * follow the documented exit-code contract (2 for usage problems).
+ */
+function normalizeCommanderError(error: unknown): unknown {
+  if (!(error instanceof Error)) return error;
+  const code = (error as { code?: string }).code ?? '';
+  if (
+    code === 'commander.helpDisplayed' ||
+    code === 'commander.version' ||
+    code === 'commander.help'
+  ) {
+    return { __handled: true };
+  }
+  if (!code.startsWith('commander.')) return error;
+  const raw = error.message;
+  // Extract the suggestion before stripping it from the message.
+  const suggestion = /Did you mean (?!one of)(\S+?)\?/i.exec(raw)?.[1]?.replace(/[?.]+$/, '');
+  const message = raw
+    .replace(/^error:\s*/i, '')
+    .replace(/\s*\(add --help for additional information\)\s*$/i, '')
+    .replace(/\n?\s*\(Did you mean [^)]*\)\s*$/i, '')
+    // Normalise quoting so messages read consistently: Unknown command "x".
+    .replace(
+      /^(unknown (?:command|option|argument|excess arguments?)) ['"`]([^'"`]+)['"`]/i,
+      '$1 "$2"',
+    )
+    .trim();
+  // Messages follow "✖ Error: " — capitalise so they read as sentences.
+  const sentence = message.charAt(0).toUpperCase() + message.slice(1);
+  const hints: string[] = [];
+  if (suggestion) hints.push(`Did you mean \`${suggestion}\`?`);
+  const unknownCommand = /unknown command ["']?([^"'\s]+)/i.exec(message)?.[1];
+  if (unknownCommand) hints.push('Run `apiforge --help` to see the available commands.');
+  if (/unknown option/i.test(message))
+    hints.push('Run `apiforge <command> --help` to see supported options.');
+  if (/missing required argument/i.test(message))
+    hints.push('Run `apiforge <command> --help` for the required arguments.');
+  return new UsageError(sentence, hints);
 }
 
 export async function main(argv: string[] = process.argv): Promise<void> {
@@ -88,13 +152,17 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   try {
     await program.parseAsync(argv);
   } catch (error) {
-    const fatal = toApiForgeError(error);
-    const ui = createUiFromCommand({ json: hasJsonFlag, color: argv.includes('--no-color') ? false : undefined });
+    const normalized = normalizeCommanderError(error);
+    if (typeof normalized === 'object' && normalized !== null && '__handled' in normalized) return;
+    const fatal = toApiForgeError(normalized);
+    const ui = createUiFromCommand({
+      json: hasJsonFlag,
+      color: argv.includes('--no-color') ? false : undefined,
+    });
     if (hasJsonFlag) {
       process.stdout.write(`${formatCliError(fatal, ui, { json: true })}\n`);
     } else {
       process.stderr.write(`${formatCliError(fatal, ui, { debug: argv.includes('--debug') })}\n`);
-      if (fatal instanceof UsageError) process.stderr.write('\nRun `apiforge --help` for usage.\n');
     }
     const { exitCodeForError } = await import('./errors.js');
     process.exitCode = exitCodeForError(fatal);
@@ -105,7 +173,8 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
 // Execute only when invoked as a binary (not when imported by tests).
 const invokedDirectly =
-  process.argv[1] !== undefined && /(?:^|[\\/])cli(?:\.js|\.ts)?$/.test(process.argv[1].replace(/\.map$/, ''));
+  process.argv[1] !== undefined &&
+  /(?:^|[\\/])cli(?:\.js|\.ts)?$/.test(process.argv[1].replace(/\.map$/, ''));
 
 if (invokedDirectly) {
   void main();

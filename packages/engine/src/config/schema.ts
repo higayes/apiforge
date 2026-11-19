@@ -18,16 +18,14 @@ const httpMethod = z
   .regex(/^[A-Za-z][A-Za-z0-9-]{0,31}$/, 'Invalid HTTP method')
   .transform((value) => value.toUpperCase());
 
-const headerValue = z.union([z.string(), z.number(), z.boolean()]).transform((value) => String(value));
+const headerValue = z
+  .union([z.string(), z.number(), z.boolean()])
+  .transform((value) => String(value));
 /** `null` is accepted as "empty" because a YAML map with only comments parses as null. */
 const headersSchema = z.preprocess((value) => value ?? {}, z.record(z.string(), headerValue));
 const optionalRecord = (valueSchema: z.ZodType) =>
   z.preprocess((value) => value ?? {}, z.record(z.string(), valueSchema));
 const variablesSchema = optionalRecord(z.unknown());
-
-const scalarString = z
-  .union([z.string(), z.number(), z.boolean()])
-  .transform((value) => String(value));
 
 const durationMs = z.number().int().min(0).max(600_000);
 
@@ -68,21 +66,28 @@ const checkKeys = [
   'schema',
 ] as const;
 
+/**
+ * A numeric assertion operand: a literal, or a `{{template}}` string that the
+ * runner resolves (with type preservation) before evaluation.
+ */
+export type TemplatedNumber = number | string;
+export type TemplatedBoolean = boolean | string;
+
 export type ValueCheck = {
   equals?: unknown;
   notEquals?: unknown;
-  exists?: boolean;
+  exists?: TemplatedBoolean;
   type?: 'string' | 'number' | 'boolean' | 'null' | 'array' | 'object';
   matches?: string;
-  min?: number;
-  max?: number;
-  gt?: number;
-  gte?: number;
-  lt?: number;
-  lte?: number;
-  length?: number;
-  minLength?: number;
-  maxLength?: number;
+  min?: TemplatedNumber;
+  max?: TemplatedNumber;
+  gt?: TemplatedNumber;
+  gte?: TemplatedNumber;
+  lt?: TemplatedNumber;
+  lte?: TemplatedNumber;
+  length?: TemplatedNumber;
+  minLength?: TemplatedNumber;
+  maxLength?: TemplatedNumber;
   in?: unknown[];
   notIn?: unknown[];
   contains?: unknown;
@@ -92,24 +97,51 @@ export type ValueCheck = {
   schema?: Record<string, unknown>;
 };
 
+/**
+ * A way to say "this value will come from a template at run time".
+ *
+ * Numeric fields such as `length` or `timeoutMs` must accept `{{variable}}`
+ * (and `{{steps.x}}`, `{{$env.NAME}}`) even though the placeholder is a string:
+ * the *type* of the resolved value is enforced by the assertion itself, not by
+ * the config schema. Without this, a data-driven suite could not express
+ * `length: "{{expected}}"` at all.
+ */
+export const templated = <T extends z.ZodTypeAny>(schema: T) =>
+  z.union([
+    schema,
+    z.string().regex(/^\{\{[^{}]+\}\}$/, 'Expected a number/boolean or a {{template}} placeholder'),
+  ]);
+
+const templatedNonNegativeInt = templated(z.number().int().nonnegative());
+const templatedNonNegative = templated(z.number().nonnegative());
+const templatedBoolean = templated(z.boolean());
+
+/**
+ * What a suite author may write for a check. The runtime accepts shorthands
+ * (a scalar or a plain object meaning "equals this value"), so the *input* type
+ * is wider than `ValueCheck`; `normalizeCheck` narrows it after parsing.
+ */
+export type CheckInput =
+  ValueCheck | string | number | boolean | null | unknown[] | Record<string, unknown>;
+
 const jsonSchemaObject = z.record(z.string(), z.unknown());
 
 const valueCheckObject: z.ZodType<ValueCheck> = z.lazy(() =>
   z.strictObject({
     equals: z.unknown().optional(),
     notEquals: z.unknown().optional(),
-    exists: z.boolean().optional(),
+    exists: templatedBoolean.optional(),
     type: z.enum(['string', 'number', 'boolean', 'null', 'array', 'object']).optional(),
     matches: z.string().optional(),
-    min: z.number().optional(),
-    max: z.number().optional(),
-    gt: z.number().optional(),
-    gte: z.number().optional(),
-    lt: z.number().optional(),
-    lte: z.number().optional(),
-    length: z.number().int().nonnegative().optional(),
-    minLength: z.number().int().nonnegative().optional(),
-    maxLength: z.number().int().nonnegative().optional(),
+    min: templatedNonNegative.optional(),
+    max: templatedNonNegative.optional(),
+    gt: templatedNonNegative.optional(),
+    gte: templatedNonNegative.optional(),
+    lt: templatedNonNegative.optional(),
+    lte: templatedNonNegative.optional(),
+    length: templatedNonNegativeInt.optional(),
+    minLength: templatedNonNegativeInt.optional(),
+    maxLength: templatedNonNegativeInt.optional(),
     in: z.array(z.unknown()).optional(),
     notIn: z.array(z.unknown()).optional(),
     contains: z.unknown().optional(),
@@ -125,7 +157,7 @@ const valueCheckObject: z.ZodType<ValueCheck> = z.lazy(() =>
  * or more supported operators. Objects that contain no known operator are
  * treated as literal expected values (deep equality).
  */
-export const valueCheckSchema: z.ZodType<ValueCheck> = z.union([
+export const valueCheckSchema: z.ZodType<CheckInput> = z.union([
   z.string().transform((value) => ({ equals: value }) as ValueCheck),
   z.number().transform((value) => ({ equals: value }) as ValueCheck),
   z.boolean().transform((value) => ({ equals: value }) as ValueCheck),
@@ -147,7 +179,7 @@ const headerCheckSchema = z.strictObject({
   contains: z.string().optional(),
   notContains: z.string().optional(),
   matches: z.string().optional(),
-  exists: z.boolean().optional(),
+  exists: templatedBoolean.optional(),
   in: z.array(z.string()).optional(),
 });
 
@@ -157,7 +189,10 @@ const statusExpectation = z.union([
   z.number().int().min(100).max(599),
   z.array(z.number().int().min(100).max(599)).min(1),
   z.strictObject({ in: z.array(z.number().int().min(100).max(599)).min(1) }),
-  z.strictObject({ min: z.number().int().min(100).max(599), max: z.number().int().min(100).max(599) }),
+  z.strictObject({
+    min: z.number().int().min(100).max(599),
+    max: z.number().int().min(100).max(599),
+  }),
 ]);
 
 const bodyExpectation = z.strictObject({
@@ -171,8 +206,8 @@ const bodyExpectation = z.strictObject({
 });
 
 const timeExpectation = z.strictObject({
-  lessThan: z.number().nonnegative().optional(),
-  moreThan: z.number().nonnegative().optional(),
+  lessThan: templatedNonNegative.optional(),
+  moreThan: templatedNonNegative.optional(),
 });
 
 export const expectSchema = z.strictObject({
@@ -212,7 +247,9 @@ const bodySchema = z.union([
   z.strictObject({ json: z.unknown() }),
   z.strictObject({ text: z.string() }),
   z.strictObject({ form: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) }),
-  z.strictObject({ urlencoded: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])) }),
+  z.strictObject({
+    urlencoded: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+  }),
   z.strictObject({ file: z.string() }),
 ]);
 
@@ -315,10 +352,13 @@ export const suiteSchema = z
     thresholds: z.array(thresholdDefinitionSchema).optional(),
     tests: z.array(testSchema).min(1, 'A suite needs at least one test'),
   })
-  .refine((suite) => suite.tests.every((test) => test.path !== undefined || test.url !== undefined), {
-    message: 'Every test needs either `path` or `url`',
-    path: ['tests'],
-  });
+  .refine(
+    (suite) => suite.tests.every((test) => test.path !== undefined || test.url !== undefined),
+    {
+      message: 'Every test needs either `path` or `url`',
+      path: ['tests'],
+    },
+  );
 
 export type SuiteDefinition = z.infer<typeof suiteSchema>;
 
@@ -399,6 +439,12 @@ export const performanceTargetSchema = z.strictObject({
 });
 
 export const performanceSpecSchema = z.strictObject({
+  /**
+   * Base URL used when `target.path` is relative. Lets a spec stay
+   * environment-agnostic (`path: /api/users`) and be pointed at local, staging
+   * or production by editing one line (or by `--var baseUrl=…`).
+   */
+  baseUrl: z.string().optional(),
   target: performanceTargetSchema,
   concurrency: z.number().int().min(1).max(100).default(5),
   durationSeconds: z.number().positive().max(3600).optional(),
@@ -414,16 +460,25 @@ export type PerformanceSpec = z.infer<typeof performanceSpecSchema>;
 /* --------------------------------- Security -------------------------------- */
 
 export const securitySpecSchema = z.strictObject({
+  /** Base URL for a relative `target.path` (see `performanceSpecSchema`). */
+  baseUrl: z.string().optional(),
   target: performanceTargetSchema.pick({ url: true, path: true, headers: true, method: true }),
   threshold: z.enum(['critical', 'high', 'medium', 'low']).default('high'),
   checks: z
     .strictObject({
       headers: z.boolean().optional(),
-      cors: z.union([z.boolean(), z.strictObject({ origin: z.string(), withCredentials: z.boolean().optional() })]).optional(),
+      cors: z
+        .union([
+          z.boolean(),
+          z.strictObject({ origin: z.string(), withCredentials: z.boolean().optional() }),
+        ])
+        .optional(),
       cookies: z.boolean().optional(),
       disclosure: z.boolean().optional(),
       auth: z.boolean().optional(),
-      methods: z.union([z.boolean(), z.strictObject({ methods: z.array(httpMethod).min(1) })]).optional(),
+      methods: z
+        .union([z.boolean(), z.strictObject({ methods: z.array(httpMethod).min(1) })])
+        .optional(),
       tls: z.boolean().optional(),
     })
     .optional(),
@@ -434,6 +489,8 @@ export type SecuritySpec = z.infer<typeof securitySpecSchema>;
 /* -------------------------------- Contract --------------------------------- */
 
 export const contractSpecSchema = z.strictObject({
+  /** Base URL for a relative `target.path` (see `performanceSpecSchema`). */
+  baseUrl: z.string().optional(),
   target: performanceTargetSchema,
   baseline: z.string().optional(),
   update: z.boolean().optional(),
@@ -480,31 +537,52 @@ export function parseSuiteFile(content: string, context = 'suite'): SuiteDefinit
   return parseSuiteDocument(parseDocument(content, context), context);
 }
 
-export function parseEnvironmentDocument(document: unknown, context = 'environment'): EnvironmentDefinition {
+export function parseEnvironmentDocument(
+  document: unknown,
+  context = 'environment',
+): EnvironmentDefinition {
   return validateWith(environmentSchema, document, context);
 }
 
-export function parseEnvironmentFile(content: string, context = 'environment'): EnvironmentDefinition {
+export function parseEnvironmentFile(
+  content: string,
+  context = 'environment',
+): EnvironmentDefinition {
   return parseEnvironmentDocument(parseDocument(content, context), context);
 }
 
-export function parseProjectDocument(document: unknown, context = 'project configuration'): ProjectConfig {
+export function parseProjectDocument(
+  document: unknown,
+  context = 'project configuration',
+): ProjectConfig {
   return validateWith(projectSchema, document, context);
 }
 
-export function parseProjectFile(content: string, context = 'project configuration'): ProjectConfig {
+export function parseProjectFile(
+  content: string,
+  context = 'project configuration',
+): ProjectConfig {
   return parseProjectDocument(parseDocument(content, context), context);
 }
 
-export function parsePerformanceDocument(document: unknown, context = 'performance specification'): PerformanceSpec {
+export function parsePerformanceDocument(
+  document: unknown,
+  context = 'performance specification',
+): PerformanceSpec {
   return validateWith(performanceSpecSchema, document, context);
 }
 
-export function parseSecurityDocument(document: unknown, context = 'security specification'): SecuritySpec {
+export function parseSecurityDocument(
+  document: unknown,
+  context = 'security specification',
+): SecuritySpec {
   return validateWith(securitySpecSchema, document, context);
 }
 
-export function parseContractDocument(document: unknown, context = 'contract specification'): ContractSpec {
+export function parseContractDocument(
+  document: unknown,
+  context = 'contract specification',
+): ContractSpec {
   return validateWith(contractSpecSchema, document, context);
 }
 

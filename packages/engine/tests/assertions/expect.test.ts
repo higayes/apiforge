@@ -23,8 +23,10 @@ function context(overrides: Partial<AssertionContextData> = {}): AssertionContex
   };
 }
 
-const passed = (results: ReturnType<typeof evaluateExpect>) => results.every((result) => result.passed);
-const failures = (results: ReturnType<typeof evaluateExpect>) => results.filter((result) => !result.passed);
+const passed = (results: ReturnType<typeof evaluateExpect>) =>
+  results.every((result) => result.passed);
+const failures = (results: ReturnType<typeof evaluateExpect>) =>
+  results.filter((result) => !result.passed);
 
 describe('status assertions', () => {
   it('accepts exact, array, in-range and "in list" statuses', () => {
@@ -44,57 +46,85 @@ describe('status assertions', () => {
 
 describe('header assertions', () => {
   it('matches headers case-insensitively', () => {
-    const results = evaluateExpect({ headers: { 'Content-Type': { contains: 'json' } } }, context());
-    expect(passed(results)).toBe(true);
-  });
-
-  it('supports equals, notEquals, matches, in, exists', () => {
     const results = evaluateExpect(
-      {
-        headers: {
-          'x-request-id': { equals: 'abc' },
-          'content-type': { notEquals: 'text/plain' },
-          'x-request-id': { matches: '^[a-z]+$' },
-          'content-type': { in: ['application/json'] },
-          'x-request-id': { exists: true },
-          'x-missing': { exists: false },
-        },
-      },
+      { headers: { 'Content-Type': { contains: 'json' } } },
       context(),
     );
     expect(passed(results)).toBe(true);
   });
 
+  it('supports equals, notEquals, matches, in, exists', () => {
+    // Exercised through `evaluateValueCheck` because a single object literal
+    // cannot carry two checks for the same header (TS1117).
+    const results = [
+      evaluateValueCheck('header:x-request-id', { equals: 'abc' }, { found: true, value: 'abc' }),
+      evaluateValueCheck(
+        'header:content-type',
+        { notEquals: 'text/plain' },
+        { found: true, value: 'application/json' },
+      ),
+      evaluateValueCheck(
+        'header:x-request-id',
+        { matches: '^[a-z]+$' },
+        { found: true, value: 'abc' },
+      ),
+      evaluateValueCheck(
+        'header:content-type',
+        { in: ['application/json'] },
+        { found: true, value: 'application/json' },
+      ),
+      evaluateValueCheck('header:x-request-id', { exists: true }, { found: true, value: 'abc' }),
+      evaluateValueCheck('header:x-missing', { exists: false }, { found: false, value: undefined }),
+    ].flat();
+    expect(passed(results)).toBe(true);
+  });
+
   it('fails with a clear message when a header is missing', () => {
-    const [failure] = failures(evaluateExpect({ headers: { 'x-missing': { equals: 'x' } } }, context()));
+    const [failure] = failures(
+      evaluateExpect({ headers: { 'x-missing': { equals: 'x' } } }, context()),
+    );
     expect(failure?.message).toContain('expected header "x-missing" to be present');
   });
 });
 
 describe('jsonPath assertions', () => {
   it('supports all value operators', () => {
-    const results = evaluateExpect(
-      {
-        jsonPath: {
-          id: 42,
-          name: { equals: 'Ada' },
-          'nested.ok': { exists: true },
-          tags: { length: 2, type: 'array', contains: 'a' },
-          score: { gt: 99, lte: 100 },
-          name: { matches: '^A' },
-          'tags[1]': { in: ['b', 'c'] },
-          missing: { exists: false },
-          id: { notIn: [1, 2] },
-          name: { minLength: 3, maxLength: 10 },
-        },
-      },
-      context(),
-    );
+    const ctx = context();
+    const json = ctx.json as Record<string, unknown>;
+    // One object literal cannot repeat a path, so each operator is evaluated
+    // directly against the same resolved values a suite would see.
+    const results = [
+      evaluateValueCheck('$.id', 42, { found: true, value: json.id }),
+      evaluateValueCheck('$.name', { equals: 'Ada' }, { found: true, value: json.name }),
+      evaluateValueCheck('$.nested.ok', { exists: true }, { found: true, value: true }),
+      evaluateValueCheck(
+        '$.tags',
+        { length: 2, type: 'array', contains: 'a' },
+        { found: true, value: json.tags },
+      ),
+      evaluateValueCheck('$.score', { gt: 99, lte: 100 }, { found: true, value: json.score }),
+      evaluateValueCheck('$.name', { matches: '^A' }, { found: true, value: json.name }),
+      evaluateValueCheck('$.tags[1]', { in: ['b', 'c'] }, { found: true, value: 'b' }),
+      evaluateValueCheck('$.missing', { exists: false }, { found: false, value: undefined }),
+      evaluateValueCheck('$.id', { notIn: [1, 2] }, { found: true, value: json.id }),
+      evaluateValueCheck(
+        '$.name',
+        { minLength: 3, maxLength: 10 },
+        { found: true, value: json.name },
+      ),
+    ].flat();
     expect(failures(results)).toEqual([]);
   });
 
+  it('accepts shorthand scalars for jsonPath values', () => {
+    expect(passed(evaluateExpect({ jsonPath: { id: 42, name: 'Ada' } }, context()))).toBe(true);
+    expect(passed(evaluateExpect({ jsonPath: { id: 43 } }, context()))).toBe(false);
+  });
+
   it('fails when the body is not JSON', () => {
-    const [failure] = failures(evaluateExpect({ jsonPath: { a: 1 } }, context({ json: undefined })));
+    const [failure] = failures(
+      evaluateExpect({ jsonPath: { a: 1 } }, context({ json: undefined })),
+    );
     expect(failure?.message).toContain('response is not valid JSON');
   });
 
@@ -105,8 +135,12 @@ describe('jsonPath assertions', () => {
 
   it('evaluates every/some element-wise', () => {
     const ctx = context({ json: { numbers: [2, 4, 6], mixed: [1, 'x'] } });
-    expect(passed(evaluateExpect({ jsonPath: { numbers: { every: { type: 'number' } } } }, ctx))).toBe(true);
-    expect(passed(evaluateExpect({ jsonPath: { mixed: { some: { type: 'string' } } } }, ctx))).toBe(true);
+    expect(
+      passed(evaluateExpect({ jsonPath: { numbers: { every: { type: 'number' } } } }, ctx)),
+    ).toBe(true);
+    expect(passed(evaluateExpect({ jsonPath: { mixed: { some: { type: 'string' } } } }, ctx))).toBe(
+      true,
+    );
     const failed = failures(evaluateExpect({ jsonPath: { numbers: { every: { gt: 3 } } } }, ctx));
     expect(failed).toHaveLength(1);
     expect(failed[0]?.message).toContain('not every item matched');
@@ -115,8 +149,26 @@ describe('jsonPath assertions', () => {
 
   it('treats plain objects as literal deep-equality values', () => {
     const ctx = context({ json: { payload: { a: 1, b: [2, 3] } } });
-    expect(passed(evaluateExpect({ jsonPath: { payload: { expected: 'field is not an operator' } } }, ctx))).toBe(false);
-    expect(passed(evaluateExpect({ jsonPath: { payload: { a: 1, b: [2, 3] } } }, ctx))).toBe(true);
+    expect(passed(evaluateExpect({ jsonPath: { payload: { b: [2, 3], a: 1 } } }, ctx))).toBe(true);
+    expect(passed(evaluateExpect({ jsonPath: { payload: { a: 2 } } }, ctx))).toBe(false);
+  });
+
+  it('compares objects structurally, independent of key order', () => {
+    // Regression: deep equality used JSON.stringify, so `{a,b}` never matched
+    // `{b,a}` and array/object nesting was compared as raw text.
+    const ctx = context({ json: { payload: { a: 1, b: { c: [1, 2], d: null } } } });
+    expect(
+      passed(evaluateExpect({ jsonPath: { payload: { b: { d: null, c: [1, 2] }, a: 1 } } }, ctx)),
+    ).toBe(true);
+    expect(
+      passed(evaluateExpect({ jsonPath: { payload: { a: 1, b: { c: [2, 1], d: null } } } }, ctx)),
+    ).toBe(false);
+    expect(passed(evaluateExpect({ jsonPath: { payload: { a: 1 } } }, ctx))).toBe(false);
+    expect(
+      passed(
+        evaluateExpect({ jsonPath: { payload: { a: 1, b: { c: [1, 2], d: null }, e: 0 } } }, ctx),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -142,7 +194,9 @@ describe('body assertions', () => {
       properties: { id: { type: 'number' }, name: { type: 'string', minLength: 2 } },
     };
     expect(passed(evaluateExpect({ body: { schema } }, context()))).toBe(true);
-    const [failure] = failures(evaluateExpect({ body: { schema: { ...schema, required: ['email'] } } }, context()));
+    const [failure] = failures(
+      evaluateExpect({ body: { schema: { ...schema, required: ['email'] } } }, context()),
+    );
     expect(failure?.message).toContain("must have required property 'email'");
   });
 });
@@ -157,7 +211,11 @@ describe('time assertions', () => {
 describe('schema validation utility', () => {
   it('validates and reports all errors', () => {
     const result = validateJsonSchema(
-      { type: 'object', properties: { name: { type: 'string' }, age: { type: 'number', minimum: 18 } }, required: ['name', 'age'] },
+      {
+        type: 'object',
+        properties: { name: { type: 'string' }, age: { type: 'number', minimum: 18 } },
+        required: ['name', 'age'],
+      },
       { name: 5, age: 10 },
     );
     expect(result.valid).toBe(false);
@@ -192,7 +250,11 @@ describe('evaluateValueCheck edge cases', () => {
   });
 
   it('handles length on objects', () => {
-    const results = evaluateValueCheck('$.x', { length: 2 }, { found: true, value: { a: 1, b: 2 } });
+    const results = evaluateValueCheck(
+      '$.x',
+      { length: 2 },
+      { found: true, value: { a: 1, b: 2 } },
+    );
     expect(results[0]?.passed).toBe(true);
   });
 
@@ -203,13 +265,23 @@ describe('evaluateValueCheck edge cases', () => {
   });
 
   it('supports notEquals and type checks', () => {
-    expect(evaluateValueCheck('$.x', { notEquals: 'b' }, { found: true, value: 'a' })[0]?.passed).toBe(true);
-    expect(evaluateValueCheck('$.x', { type: 'array' }, { found: true, value: 'a' })[0]?.passed).toBe(false);
-    expect(evaluateValueCheck('$.x', { type: 'array' }, { found: true, value: [1] })[0]?.passed).toBe(true);
+    expect(
+      evaluateValueCheck('$.x', { notEquals: 'b' }, { found: true, value: 'a' })[0]?.passed,
+    ).toBe(true);
+    expect(
+      evaluateValueCheck('$.x', { type: 'array' }, { found: true, value: 'a' })[0]?.passed,
+    ).toBe(false);
+    expect(
+      evaluateValueCheck('$.x', { type: 'array' }, { found: true, value: [1] })[0]?.passed,
+    ).toBe(true);
   });
 
   it('evaluates deep structural equality with a diff message', () => {
-    const results = evaluateValueCheck('$.x', { equals: { a: 1, b: { c: 2 } } }, { found: true, value: { a: 1, b: { c: 3 } } });
+    const results = evaluateValueCheck(
+      '$.x',
+      { equals: { a: 1, b: { c: 2 } } },
+      { found: true, value: { a: 1, b: { c: 3 } } },
+    );
     expect(results[0]?.passed).toBe(false);
     expect(results[0]?.message).toContain('$.b.c');
   });

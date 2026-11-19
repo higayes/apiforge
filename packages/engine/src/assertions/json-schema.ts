@@ -10,12 +10,16 @@ import type { ValidateFunction } from 'ajv';
 import { ConfigError } from '../errors.js';
 
 const AjvClass = (AjvModule as unknown as { default?: typeof AjvModule }).default ?? AjvModule;
-const addFormats = (addFormatsModule as unknown as { default?: typeof addFormatsModule }).default ?? addFormatsModule;
+const addFormats =
+  (addFormatsModule as unknown as { default?: typeof addFormatsModule }).default ??
+  addFormatsModule;
 
-const ajv = new (AjvClass as unknown as new (options: Record<string, unknown>) => {
-  compile: (schema: unknown) => ValidateFunction;
-  addFormat: (name: string, format: unknown) => unknown;
-})({
+const ajv = new (
+  AjvClass as unknown as new (options: Record<string, unknown>) => {
+    compile: (schema: unknown) => ValidateFunction;
+    addFormat: (name: string, format: unknown) => unknown;
+  }
+)({
   allErrors: true,
   strict: false,
   allowUnionTypes: true,
@@ -39,7 +43,10 @@ function cacheKey(schema: unknown): string {
  * Validate `value` against a JSON Schema. Throws ConfigError when the schema
  * itself is unusable (e.g. references an unresolved `$ref`).
  */
-export function validateJsonSchema(schema: Record<string, unknown>, value: unknown): SchemaValidationResult {
+export function validateJsonSchema(
+  schema: Record<string, unknown>,
+  value: unknown,
+): SchemaValidationResult {
   const key = cacheKey(schema);
   let validator = validatorCache.get(key);
   if (!validator) {

@@ -41,7 +41,9 @@ export function diffLines(a: string, b: string): LineDiff[] {
     const nextRow = table[i + 1] as number[];
     for (let j = m - 1; j >= 0; j -= 1) {
       row[j] =
-        linesA[i] === linesB[j] ? (nextRow[j + 1] as number) + 1 : Math.max(nextRow[j] as number, row[j + 1] as number);
+        linesA[i] === linesB[j]
+          ? (nextRow[j + 1] as number) + 1
+          : Math.max(nextRow[j] as number, row[j + 1] as number);
     }
   }
 
@@ -79,7 +81,9 @@ export function unifiedDiff(a: string, b: string, options: DiffOptions = {}): st
   const context = Math.max(0, options.contextLines ?? 2);
   const maxLines = options.maxLines ?? MAX_DIFF_LINES;
   const ops = diffLines(a, b);
-  const changedIndexes = ops.map((op, index) => (op.type === 'equal' ? -1 : index)).filter((index) => index >= 0);
+  const changedIndexes = ops
+    .map((op, index) => (op.type === 'equal' ? -1 : index))
+    .filter((index) => index >= 0);
   if (changedIndexes.length === 0) return '';
 
   const keep = new Set<number>();
@@ -122,11 +126,21 @@ export interface ValueDifference {
 const MAX_VALUE_DIFFS = 25;
 
 /** Structural JSON diff returning the first N differing leaf paths. */
-export function diffJson(expected: unknown, actual: unknown, basePath = '$', out: ValueDifference[] = []): ValueDifference[] {
+export function diffJson(
+  expected: unknown,
+  actual: unknown,
+  basePath = '$',
+  out: ValueDifference[] = [],
+): ValueDifference[] {
   if (out.length >= MAX_VALUE_DIFFS) return out;
 
   if (expected === actual) return out;
-  if (typeof expected === 'number' && typeof actual === 'number' && Number.isNaN(expected) && Number.isNaN(actual)) {
+  if (
+    typeof expected === 'number' &&
+    typeof actual === 'number' &&
+    Number.isNaN(expected) &&
+    Number.isNaN(actual)
+  ) {
     return out;
   }
 

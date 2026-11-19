@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { computeLatencyStats, mean, percentage, percentile, round, stddev } from '../../src/util/stats.js';
+import {
+  computeLatencyStats,
+  mean,
+  percentage,
+  percentile,
+  round,
+  stddev,
+} from '../../src/util/stats.js';
 import { diffJson, diffLines, summarizeValueDiff, unifiedDiff } from '../../src/util/diff.js';
 
 describe('percentile', () => {
@@ -67,7 +74,17 @@ describe('computeLatencyStats', () => {
   });
 
   it('returns zeros for no samples', () => {
-    expect(computeLatencyStats([])).toEqual({ min: 0, mean: 0, median: 0, p50: 0, p90: 0, p95: 0, p99: 0, max: 0, stddev: 0 });
+    expect(computeLatencyStats([])).toEqual({
+      min: 0,
+      mean: 0,
+      median: 0,
+      p50: 0,
+      p90: 0,
+      p95: 0,
+      p99: 0,
+      max: 0,
+      stddev: 0,
+    });
   });
 });
 

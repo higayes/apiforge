@@ -1,0 +1,12 @@
+# CI environment: values come from environment variables so no secret is ever
+# committed. Fails fast if a required variable is missing (see `validate`).
+name: CI
+baseUrl: ${APIFORGE_BASE_URL:-http://127.0.0.1:4010}
+timeoutMs: 10000
+
+variables:
+  apiVersion: v1
+  demoUserRole: ci
+
+secrets:
+  demoToken: ${APIFORGE_DEMO_TOKEN:-demo-token}
