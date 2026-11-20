@@ -36,6 +36,30 @@ are always listed under **Changed**.
 - `clean` scripts and the coverage script work natively on Windows.
 - Toolchain: tsup 9 (clears the `esbuild` advisory — `pnpm audit` is clean) and
   undici 8, which raises the minimum Node.js version to **22.19.0**.
+- CI actions moved to their current major versions: `actions/checkout` 7,
+  `pnpm/action-setup` 6, `gitleaks/gitleaks-action` 3,
+  `softprops/action-gh-release` 3 and `github/codeql-action` 4.
+
+### Security
+
+- Release workflow split into two jobs so the job that runs project build
+  scripts never holds a `contents: write` token. Workflow default is read-only;
+  `id-token: write` is granted only to the npm publish job, which now publishes
+  with `--provenance`.
+- The `security-events: write` permission is granted to the CodeQL job only; the
+  dependency-audit job had it without using it.
+- Repository hardening: `main` requires the five CI jobs and forbids force-pushes
+  and deletion, secret scanning and push protection are on, and Dependabot
+  security updates are enabled.
+
+### Documentation
+
+- `docs/first-contribution.md` — a walkthrough from a clean clone to an open pull
+  request.
+- Install instructions use the real package name. `npx apiforge` resolved to an
+  unrelated package published in 2013 by a different owner; every `npx` and
+  `npm install -g` line, including the one in the GitHub release body, now names
+  `@higayes/apiforge-cli`.
 
 ## [0.1.0] — 2026-11-19
 

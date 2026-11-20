@@ -20,6 +20,9 @@ This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By taking
 part you agree to uphold it. Report unacceptable behaviour to
 `mohammedsofian2008@gmail.com`.
 
+New to the project? Start with **[docs/first-contribution.md](docs/first-contribution.md)** —
+it walks from a clean machine to an open pull request in seven short steps.
+
 ## Set up
 
 Requirements:
