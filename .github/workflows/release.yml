@@ -12,10 +12,8 @@ on:
         type: boolean
         default: true
 
-# Least privilege: this workflow runs project build scripts, so the token it can
-# reach stays read-only. `contents: write` and `id-token: write` are granted on the
-# individual steps that need them (release creation, npm provenance) instead of the
-# whole job.
+# Least privilege: the workflow default is read-only. Each job asks for exactly what
+# it needs, and the job that runs project build scripts never holds `contents: write`.
 permissions:
   contents: read
 
@@ -23,6 +21,9 @@ jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -66,14 +67,19 @@ jobs:
         run: pnpm --filter ./packages/cli publish --no-git-checks --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        permissions:
-          contents: read
-          id-token: write
 
+  # Kept in a separate job on purpose. This job never runs project code, so the
+  # `contents: write` token it holds cannot be reached by a build script. GitHub
+  # only accepts `permissions` on a workflow or a job, not on a step.
+  release:
+    name: Create GitHub release
+    needs: publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - name: Create GitHub release
-        if: github.event_name == 'push'
-        permissions:
-          contents: write
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
