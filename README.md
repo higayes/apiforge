@@ -101,6 +101,7 @@ apiforge test suites/api.suite.yaml             # one file
 apiforge test suites/ --env staging             # a directory against an environment
 apiforge test --filter users --tag smoke        # narrow by name/id or tag
 apiforge test --bail                            # stop at the first failure
+apiforge test --jobs 4                          # run up to 4 suite files concurrently
 apiforge test --reporter json,html,junit        # write reports/
 apiforge test --json | jq '.totals'             # machine-readable, stdout is pure JSON
 ```
@@ -117,6 +118,7 @@ apiforge test --json | jq '.totals'             # machine-readable, stdout is pu
 | `--reporter <list>`     | `terminal,json,html,junit`                        |
 | `-o, --out <dir>`       | report directory (default `reports/`)             |
 | `--bail`                | stop after the first failing test                 |
+| `--jobs <n>`            | run up to n suite files at once (default 1)       |
 | `--insecure`            | skip TLS verification (development only)          |
 
 ### `apiforge run [options] <url>`

@@ -25,7 +25,7 @@ Legend: ✅ shipped · 🚧 in progress · ⬜ planned · 💭 under considerati
 
 - [ ] 🚧 **Watch mode** — `apiforge test --watch` re-running affected suites on
       file changes.
-- [ ] ⬜ **Parallel suite execution** with a `--jobs` flag and deterministic
+- [x] ✅ **Parallel suite execution** with a `--jobs` flag and deterministic
       per-file isolation.
 - [ ] ⬜ **Response diff mode** — `apiforge test --diff` showing what changed in
       a response between two runs.
