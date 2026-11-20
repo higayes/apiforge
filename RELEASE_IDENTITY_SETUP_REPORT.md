@@ -1,5 +1,12 @@
 # Release Identity Setup — Report
 
+> **⚠️ SUPERSEDED — historical record, 2026-11-20.**
+> This report describes the identity `@higayes/apiforge-cli`. The project now
+> publishes as **`@apiforge-tools/apiforge-cli`** under the `@apiforge-tools` npm
+> organization. Every install command below is out of date, and **the release
+> commands in section 11 must not be run** — they would target the wrong package.
+> See `PACKAGE_SCOPE_MIGRATION.md` for the current identity.
+
 **Date:** 2026-11-20
 **Repository:** <https://github.com/higayes/apiforge>
 **Package:** `@higayes/apiforge-cli` (version `0.1.0`, **not published**)

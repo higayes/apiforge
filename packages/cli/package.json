@@ -1,5 +1,5 @@
 {
-  "name": "@higayes/apiforge-cli",
+  "name": "@apiforge-tools/apiforge-cli",
   "version": "0.1.0",
   "description": "APIFORGE CLI — API testing, validation, performance testing and security analysis. Test smarter. Ship with confidence.",
   "license": "MIT",

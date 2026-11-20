@@ -2,7 +2,7 @@
 
 **Status: DRAFT — not published anywhere.** Nothing in this file has been posted.
 Publishing it is a separate decision that requires your approval, and it should
-not happen before `@higayes/apiforge-cli@0.1.0` is actually installable from npm.
+not happen before `@apiforge-tools/apiforge-cli@0.1.0` is actually installable from npm.
 
 ---
 
@@ -13,7 +13,7 @@ not happen before `@higayes/apiforge-cli@0.1.0` is actually installable from npm
 > passive security review, and contract regression — one config format, one
 > report, no server.
 >
-> `npx @higayes/apiforge-cli init` and you have a runnable project in a few
+> `npx @apiforge-tools/apiforge-cli init` and you have a runnable project in a few
 > seconds. Node 22.19+, MIT.
 >
 > <https://github.com/higayes/apiforge>
@@ -33,7 +33,7 @@ opinion about exit codes.
 **APIFORGE is one CLI for all four.**
 
 ```bash
-npx @higayes/apiforge-cli init
+npx @apiforge-tools/apiforge-cli init
 apiforge test        # functional + schema + contract assertions
 apiforge performance # bounded load test with latency thresholds
 apiforge security    # passive posture review with evidence
@@ -91,12 +91,12 @@ rest of the post earns.
 
 **Before posting, confirm:**
 
-| Check                                                          | Why                               |
-| -------------------------------------------------------------- | --------------------------------- |
-| `npm view @higayes/apiforge-cli version` returns `0.1.0`       | The post tells people to `npx` it |
-| `npx @higayes/apiforge-cli --version` works from a clean shell | Same                              |
-| The GitHub repository is public and the README renders         | It is the destination             |
-| Discussions are open                                           | The post invites questions        |
+| Check                                                                 | Why                               |
+| --------------------------------------------------------------------- | --------------------------------- |
+| `npm view @apiforge-tools/apiforge-cli version` returns `0.1.0`       | The post tells people to `npx` it |
+| `npx @apiforge-tools/apiforge-cli --version` works from a clean shell | Same                              |
+| The GitHub repository is public and the README renders                | It is the destination             |
+| Discussions are open                                                  | The post invites questions        |
 
 **Where this actually belongs**, in rough order of likely value: a short post on a
 forum where you already participate, then a Show HN (needs a working demo and an

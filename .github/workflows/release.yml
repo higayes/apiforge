@@ -87,5 +87,5 @@ jobs:
             See [CHANGELOG.md](https://github.com/higayes/apiforge/blob/main/CHANGELOG.md) for details.
 
             ```bash
-            npm install -g @higayes/apiforge-cli@${{ github.ref_name }}
+            npm install -g @apiforge-tools/apiforge-cli@${{ github.ref_name }}
             ```

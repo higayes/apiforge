@@ -59,7 +59,7 @@ are always listed under **Changed**.
 - Install instructions use the real package name. `npx apiforge` resolved to an
   unrelated package published in 2013 by a different owner; every `npx` and
   `npm install -g` line, including the one in the GitHub release body, now names
-  `@higayes/apiforge-cli`.
+  `@apiforge-tools/apiforge-cli`.
 
 ## [0.1.0] — 2026-11-19
 

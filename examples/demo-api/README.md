@@ -23,11 +23,11 @@ credentials required.
 node scripts/demo-server.mjs            # http://127.0.0.1:4010
 
 # 2. in a second terminal, from this directory
-npx @higayes/apiforge-cli test          # or: apiforge test
-npx @higayes/apiforge-cli performance --config perf.yaml
-npx @higayes/apiforge-cli security --config security.yaml
-npx @higayes/apiforge-cli contract --config contract.yaml
-npx @higayes/apiforge-cli report reports/latest.json -f html
+npx @apiforge-tools/apiforge-cli test          # or: apiforge test
+npx @apiforge-tools/apiforge-cli performance --config perf.yaml
+npx @apiforge-tools/apiforge-cli security --config security.yaml
+npx @apiforge-tools/apiforge-cli contract --config contract.yaml
+npx @apiforge-tools/apiforge-cli report reports/latest.json -f html
 ```
 
 Or use the repository helper, which starts the server, runs everything and

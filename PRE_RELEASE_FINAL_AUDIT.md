@@ -1,5 +1,11 @@
 # APIFORGE — Pre-Release Final Audit
 
+> **⚠️ SUPERSEDED IN PART — historical record, 2026-11-20.**
+> The audit itself is unchanged and still valid, but the package identity has
+> moved from `@higayes/apiforge-cli` to **`@apiforge-tools/apiforge-cli`**. Read
+> the package name below as the identity at the time of the audit, not the current
+> one. See `PACKAGE_SCOPE_MIGRATION.md`.
+
 **Date:** 2026-11-20
 **Repository:** <https://github.com/higayes/apiforge>
 **Audited commit:** `7360925`
