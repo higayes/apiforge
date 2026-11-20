@@ -591,6 +591,47 @@ describe('env', () => {
     const result = await runCli(['env', 'show', 'nope'], { cwd: dir });
     expect(result.code).toBe(3);
   });
+
+  it('creates an environment file that passes validation', async () => {
+    const dir = await project({ 'apiforge.yaml': 'name: x\n' });
+    const result = await runCli(['env', 'new', 'staging'], { cwd: dir });
+    expect(result.code).toBe(0);
+    const file = join(dir, 'environments', 'staging.yaml');
+    expect(existsSync(file)).toBe(true);
+
+    const validate = await runCli(['env', 'validate', file], { cwd: dir });
+    expect(validate.code).toBe(0);
+    const list = await runCli(['env', 'list', '--json'], { cwd: dir });
+    expect(list.stdout).toContain('"staging"');
+  });
+
+  it('refuses to overwrite an existing environment unless --force is passed', async () => {
+    const dir = await project({
+      'apiforge.yaml': 'name: x\n',
+      'environments/staging.yaml': 'baseUrl: https://custom.example.com\n',
+    });
+    const file = join(dir, 'environments', 'staging.yaml');
+
+    const refused = await runCli(['env', 'new', 'staging'], { cwd: dir });
+    expect(refused.code).toBe(3);
+    expect(refused.stderr).toContain('--force');
+    expect(await readFile(file, 'utf8')).toBe('baseUrl: https://custom.example.com\n');
+
+    const forced = await runCli(['env', 'new', 'staging', '--force'], { cwd: dir });
+    expect(forced.code).toBe(0);
+    expect(await readFile(file, 'utf8')).toContain('https://staging.example.com');
+  });
+
+  it('rejects invalid environment names with exit code 2', async () => {
+    const dir = await project({ 'apiforge.yaml': 'name: x\n' });
+    for (const name of ['../evil', '..', 'a/b', 'a\\b']) {
+      const result = await runCli(['env', 'new', name], { cwd: dir });
+      expect(result.code, name).toBe(2);
+      expect(result.stderr).toContain('Invalid environment name');
+    }
+    expect(existsSync(join(dir, 'environments'))).toBe(false);
+    expect(existsSync(join(dir, '..', 'evil.yaml'))).toBe(false);
+  });
 });
 
 describe('validate', () => {

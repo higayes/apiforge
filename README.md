@@ -86,7 +86,7 @@ apiforge run https://api.example.com/health
 | OpenAPI import      | `apiforge import`      | turn an OpenAPI 3.x / Swagger 2.0 document into a runnable suite                                        |
 | Reports             | `apiforge report`      | re-render a saved JSON report as terminal, HTML or JUnit                                                |
 | Validation          | `apiforge validate`    | parse + schema-check every suite and environment, no network                                            |
-| Environments        | `apiforge env`         | list, show (secrets masked) and validate environments                                                   |
+| Environments        | `apiforge env`         | list, create, show (secrets masked) and validate environments                                           |
 
 Every command supports `--json` for machine-readable output and `--no-color`
 for logs.
@@ -206,10 +206,11 @@ Parses and schema-checks everything without any network traffic — ideal as a
 pre-commit hook or editor task. Files that are not suites (data files, OpenAPI
 documents, specifications) are skipped rather than reported as errors.
 
-### `apiforge env [list|show|validate]`
+### `apiforge env [list|new|show|validate]`
 
 ```bash
 apiforge env                      # list environments
+apiforge env new production       # scaffold environments/production.yaml (--force to overwrite)
 apiforge env show staging         # details, secrets masked
 apiforge env validate             # verify every environment file parses
 ```
