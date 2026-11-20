@@ -40,6 +40,16 @@ are always listed under **Changed**.
   `pnpm/action-setup` 6, `gitleaks/gitleaks-action` 3,
   `softprops/action-gh-release` 3 and `github/codeql-action` 4.
 
+### Added
+
+- Releases are **staged** rather than published directly: the release workflow runs
+  `npm stage publish`, which uploads the tarball to a holding area and defers the
+  2FA proof-of-presence to a human approval step (`npm stage approve`). A version
+  becomes installable only after that approval, so a bad tarball can be rejected
+  (`npm stage reject`) instead of burned.
+- The staged run reports its stage id in the job summary, so approving does not
+  mean hunting through logs.
+
 ### Security
 
 - Release workflow split into two jobs so the job that runs project build

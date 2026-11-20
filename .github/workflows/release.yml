@@ -1,16 +1,30 @@
 name: Release
 
-# Publishes to npm when a version tag is pushed. Requires the NPM_TOKEN secret.
-# Dry-run by default on manual dispatch so a release can be rehearsed.
+# Stages a release on npm when a version tag is pushed. Requires the NPM_TOKEN
+# secret (a granular token with "read and write — stage only").
+#
+# Staging is not publishing. `npm stage publish` uploads the tarball to a holding
+# area and defers the 2FA/OTP proof-of-presence to a separate approval step, so the
+# workflow can run unattended. A human then approves the staged version before it
+# becomes installable. Nothing this workflow does makes a version public.
 on:
   push:
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       dry-run:
-        description: Rehearse the release without publishing
+        description: Rehearse the staging run without uploading anything
         type: boolean
         default: true
+      create-release:
+        description: Also create the GitHub release (only after the staged version is approved)
+        type: boolean
+        default: false
+      release-tag:
+        description: Tag for the GitHub release, e.g. v0.1.0 (required when create-release is true)
+        type: string
+        required: false
+        default: ''
 
 # Least privilege: the workflow default is read-only. Each job asks for exactly what
 # it needs, and the job that runs project build scripts never holds `contents: write`.
@@ -18,8 +32,8 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    name: Publish to npm
+  stage:
+    name: Stage release on npm
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,57 +49,136 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '22.19.0'
           cache: pnpm
           registry-url: 'https://registry.npmjs.org'
+
+      # `npm stage` does not exist before 11.15.0; @11 keeps us below npm 12,
+      # which requires Node >=22.22.2 and would silently undercut our supported
+      # floor of 22.19.0. Installing a global npm also keeps the staging call off
+      # pnpm, whose `publish` has no staging support.
+      - name: Install npm with staged-publishing support
+        run: |
+          echo "before: npm $(npm --version)"
+          npm install --global npm@11.21.3
+          node -e "const v=process.argv[1];const [maj,min]=v.split('.').map(Number);if(maj<11||(maj===11&&min<15)){console.error('npm '+v+' has no stage command');process.exit(1)}" "$(npm --version)"
+          echo "after:  npm $(npm --version)"
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # On a tag push the tag must match the manifest, or the release would stage a
+      # version nobody asked for. On manual dispatch there is no tag (GITHUB_REF_NAME
+      # is the branch), so only the version is reported.
       - name: Verify the tag matches package.json
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
           VERSION=$(node -p "require('./packages/cli/package.json').version")
-          if [ "$TAG" != "$VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package version $VERSION"
-            exit 1
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            if [ "$TAG" != "$VERSION" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match package version $VERSION"
+              exit 1
+            fi
+            echo "Tag $GITHUB_REF_NAME matches package version $VERSION"
+          else
+            echo "Manual dispatch (${GITHUB_REF_NAME}) — staging package version $VERSION without a tag"
           fi
-          echo "Releasing $VERSION"
 
       - name: Full verification
         run: pnpm verify
 
-      - name: Publish (dry run)
+      # `npm stage publish` instead of `npm publish`. Staging bypasses the OTP
+      # prompt by design (see npm's stage/publish.js), which is what makes an
+      # unattended run possible: approval, not staging, is where 2FA happens.
+      # Runs from packages/cli so `prepublishOnly` (build + typecheck) applies
+      # exactly as it would for a real publish.
+      - name: Stage (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run
-        run: pnpm --filter ./packages/cli publish --dry-run --no-git-checks --access public
-
-      # Provenance requires the `id-token: write` permission above. It records the
-      # repository, commit and workflow that produced the tarball, so consumers can
-      # verify the published package was built here and not on a laptop.
-      - name: Publish
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry-run)
-        run: pnpm --filter ./packages/cli publish --no-git-checks --access public --provenance
+        working-directory: packages/cli
+        run: npm stage publish --dry-run --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Provenance requires the `id-token: write` permission above. It records the
+      # repository, commit and workflow that produced the tarball, so whoever
+      # approves the staged version can tell it was built here, not on a laptop.
+      # `set -o pipefail` matters: `tee` would otherwise mask npm's exit code and a
+      # failed staging run would look green.
+      - name: Stage release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry-run)
+        working-directory: packages/cli
+        run: |
+          set -o pipefail
+          npm stage publish --access public --provenance 2>&1 | tee "$RUNNER_TEMP/stage.log"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # The stage id is the handle for `npm stage approve|reject|view|download`.
+      # npm prints it on the summary line (`… (staged with id <uuid>)`), which is
+      # more reliable to parse than `--json` here: `prepublishOnly` writes its own
+      # output to stdout, so the JSON stream is not clean.
+      - name: Record the stage id
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry-run)
+        run: |
+          STAGE_ID=$(grep -oE 'staged with id [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$RUNNER_TEMP/stage.log" | tail -1 | awk '{print $NF}')
+          VERSION=$(node -p "require('./packages/cli/package.json').version")
+          if [ -z "$STAGE_ID" ]; then
+            echo "::error::npm did not report a stage id — nothing was staged."
+            exit 1
+          fi
+          {
+            echo "### Staged, not published"
+            echo ""
+            echo "Package: \`@apiforge-tools/apiforge-cli@$VERSION\`"
+            echo "Stage id: \`$STAGE_ID\`"
+            echo ""
+            echo "Inspect: \`npm stage view $STAGE_ID\`"
+            echo "Download: \`npm stage download $STAGE_ID\`"
+            echo "Approve: \`npm stage approve $STAGE_ID\`"
+            echo "Reject: \`npm stage reject $STAGE_ID\`"
+            echo ""
+            echo "Approval requires an interactive 2FA prompt, so it cannot run here."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # Kept in a separate job on purpose. This job never runs project code, so the
   # `contents: write` token it holds cannot be reached by a build script. GitHub
   # only accepts `permissions` on a workflow or a job, not on a step.
+  #
+  # Gated on an explicit input, because a staged version is NOT installable yet.
+  # Creating the release automatically would advertise an install command that
+  # 404s until someone approves the staged version. Run this job manually, with
+  # create-release=true, once the version is live on the registry.
   release:
     name: Create GitHub release
-    needs: publish
-    if: github.event_name == 'push'
+    needs: stage
+    if: github.event_name == 'workflow_dispatch' && inputs.create-release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # On manual dispatch there is no tag ref — github.ref_name is the branch — so
+      # the tag is an explicit input. Using ref_name here would publish an install
+      # command ending in `@main`, which is not a version.
+      - name: Check the release tag
+        run: |
+          TAG="${{ inputs.release-tag }}"
+          if [ -z "$TAG" ]; then
+            echo "::error::create-release was set but release-tag is empty. Pass the tag to release, e.g. v0.1.0."
+            exit 1
+          fi
+          echo "Releasing $TAG"
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.release-tag }}
           generate_release_notes: true
           body: |
             See [CHANGELOG.md](https://github.com/higayes/apiforge/blob/main/CHANGELOG.md) for details.
 
             ```bash
-            npm install -g @apiforge-tools/apiforge-cli@${{ github.ref_name }}
+            npm install -g @apiforge-tools/apiforge-cli@${{ inputs.release-tag }}
             ```
+
+            This version has been approved in the npm staging flow and is
+            installable from the registry.
