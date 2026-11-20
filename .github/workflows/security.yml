@@ -8,15 +8,17 @@ on:
   schedule:
     - cron: '0 6 * * 1' # Mondays 06:00 UTC
 
+# Default to read-only. `security-events: write` is granted to the CodeQL job only,
+# since uploading analysis results is the only thing that needs it.
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 jobs:
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,11 +39,15 @@ jobs:
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+          build-mode: none
           queries: security-and-quality
       - uses: pnpm/action-setup@v4
         with:
@@ -59,6 +65,8 @@ jobs:
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:

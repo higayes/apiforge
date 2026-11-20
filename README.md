@@ -46,7 +46,7 @@ Requires **Node.js 22.19+**.
 
 ```bash
 # run without installing
-npx apiforge@latest init
+npx @higayes/apiforge-cli@latest init
 
 # or install globally
 npm install -g @higayes/apiforge-cli

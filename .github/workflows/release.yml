@@ -12,8 +12,12 @@ on:
         type: boolean
         default: true
 
+# Least privilege: this workflow runs project build scripts, so the token it can
+# reach stays read-only. `contents: write` and `id-token: write` are granted on the
+# individual steps that need them (release creation, npm provenance) instead of the
+# whole job.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   publish:
@@ -54,14 +58,22 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run
         run: pnpm --filter ./packages/cli publish --dry-run --no-git-checks --access public
 
+      # Provenance requires the `id-token: write` permission above. It records the
+      # repository, commit and workflow that produced the tarball, so consumers can
+      # verify the published package was built here and not on a laptop.
       - name: Publish
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry-run)
-        run: pnpm --filter ./packages/cli publish --no-git-checks --access public
+        run: pnpm --filter ./packages/cli publish --no-git-checks --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        permissions:
+          contents: read
+          id-token: write
 
       - name: Create GitHub release
         if: github.event_name == 'push'
+        permissions:
+          contents: write
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
@@ -69,5 +81,5 @@ jobs:
             See [CHANGELOG.md](https://github.com/higayes/apiforge/blob/main/CHANGELOG.md) for details.
 
             ```bash
-            npm install -g apiforge@${{ github.ref_name }}
+            npm install -g @higayes/apiforge-cli@${{ github.ref_name }}
             ```
