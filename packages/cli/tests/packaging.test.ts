@@ -26,9 +26,14 @@ import { fileURLToPath } from 'node:url';
 
 const exec = promisify(execFile);
 
-// npm ships as a shell script on POSIX and as npm.cmd on Windows; spawning the
-// bare name fails with ENOENT there.
-const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+// npm ships as a shell script on POSIX and as npm.cmd on Windows. Spawning the
+// bare name fails with ENOENT on Windows, and spawning a .cmd without a shell
+// fails with EINVAL (Node's mitigation for Windows batch-file injection), so the
+// Windows path goes through the shell.
+const isWindows = process.platform === 'win32';
+const NPM = isWindows ? 'npm.cmd' : 'npm';
+const npmOptions = <T extends object>(options: T): T & { shell?: boolean } =>
+  isWindows ? { ...options, shell: true } : options;
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distFile = join(cliDir, 'dist', 'cli.js');
 
@@ -150,10 +155,11 @@ describe('packaging', () => {
 
   it('packs only the intended files', async () => {
     const pkg = await packageJson();
-    const { stdout } = await exec(NPM, ['pack', '--dry-run', '--json'], {
-      cwd: cliDir,
-      env: { ...process.env, npm_config_loglevel: 'error' },
-    });
+    const { stdout } = await exec(
+      NPM,
+      ['pack', '--dry-run', '--json'],
+      npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
+    );
     const [entry] = JSON.parse(stdout) as Array<{ files: Array<{ path: string }>; size: number }>;
     const paths = (entry?.files ?? []).map((file) => file.path);
     expect(paths).toContain('dist/cli.js');
@@ -176,19 +182,21 @@ describe('packaging', () => {
     async () => {
       const workDir = await mkdtemp(join(tmpdir(), 'apiforge-pack-'));
       try {
-        const { stdout } = await exec(NPM, ['pack', '--json', '--pack-destination', workDir], {
-          cwd: cliDir,
-          env: { ...process.env, npm_config_loglevel: 'error' },
-        });
+        const { stdout } = await exec(
+          NPM,
+          ['pack', '--json', '--pack-destination', workDir],
+          npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
+        );
         const [entry] = JSON.parse(stdout) as Array<{ filename: string }>;
         const tarball = join(workDir, entry?.filename as string);
 
         const consumer = join(workDir, 'consumer');
-        await exec(NPM, ['init', '-y'], { cwd: workDir });
-        await exec(NPM, ['install', tarball, '--no-audit', '--no-fund'], {
-          cwd: workDir,
-          env: { ...process.env, npm_config_loglevel: 'error' },
-        });
+        await exec(NPM, ['init', '-y'], npmOptions({ cwd: workDir }));
+        await exec(
+          NPM,
+          ['install', tarball, '--no-audit', '--no-fund'],
+          npmOptions({ cwd: workDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
+        );
 
         // Follow the real package name: the binary is always `apiforge`, but the
         // install directory is the package name, which may be scoped.
