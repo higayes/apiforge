@@ -23,7 +23,7 @@ Legend: ✅ shipped · 🚧 in progress · ⬜ planned · 💭 under considerati
 
 ## 0.2 — Depth
 
-- [ ] 🚧 **Watch mode** — `apiforge test --watch` re-running affected suites on
+- [x] ✅ **Watch mode** — `apiforge test --watch` re-running affected suites on
       file changes.
 - [ ] ⬜ **Parallel suite execution** with a `--jobs` flag and deterministic
       per-file isolation.

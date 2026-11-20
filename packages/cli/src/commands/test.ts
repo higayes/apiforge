@@ -1,9 +1,10 @@
 import type { Command } from 'commander';
-import { dirname } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import {
   buildTestReport,
   closeHttpResources,
+  findProjectRoot,
   formatDuration,
   renderTestReport,
   runSuite,
@@ -11,6 +12,8 @@ import {
   type ReportFormat,
   type SuiteRun,
   type TestCaseResult,
+  toApiForgeError,
+  UsageError,
 } from '@apiforge/engine';
 import {
   EXIT_CHECKS_FAILED,
@@ -19,6 +22,7 @@ import {
   EXIT_NETWORK,
   EXIT_SUCCESS,
 } from '../exit-codes.js';
+import { createFileWatcher, type FileWatcher, type WatchFn } from '../lib/watch.js';
 import { createUiFromCommand } from '../lib/context.js';
 import { openProject } from '../lib/project.js';
 import {
@@ -51,9 +55,19 @@ interface TestCommandOptions {
   bail?: boolean;
   insecure?: boolean;
   title?: string;
+  watch?: boolean;
 }
 
-export function registerTestCommand(program: Command): void {
+/**
+ * Test seam: lets tests replace the OS file watcher. Not part of the CLI
+ * surface; production code always uses `node:fs.watch`.
+ */
+export interface TestCommandHooks {
+  watch?: WatchFn;
+  debounceMs?: number;
+}
+
+export function registerTestCommand(program: Command, hooks: TestCommandHooks = {}): void {
   program
     .command('test [paths...]')
     .description('Run API test suites (YAML/JSON) and evaluate their assertions')
@@ -70,6 +84,7 @@ export function registerTestCommand(program: Command): void {
     .option('--json', 'print the full report as JSON to stdout')
     .option('--title <text>', 'report title')
     .option('--bail', 'stop after the first failing test')
+    .option('-w, --watch', 're-run when a suite, environment or data file changes')
     .option('--insecure', 'do not verify TLS certificates (development only)')
     .option('-v, --verbose', 'show every test and assertion')
     .option('-q, --quiet', 'only print the final result')
@@ -86,15 +101,37 @@ export function registerTestCommand(program: Command): void {
         const secrets = parseKeyValuePairs(options.secret, '--secret');
         const headers = parseHeaders(options.header);
         const timeoutMs = parseTimeout(options.timeout);
+        if (options.watch === true && options.json === true) {
+          throw new UsageError('--watch cannot be combined with --json', [
+            'Watch mode re-runs continuously, so stdout cannot be a single JSON document.',
+            'Drop --json, or write reports with --reporter json to a directory instead.',
+          ]);
+        }
+
+        let watcher: FileWatcher | undefined;
+        let running = false;
         const cancellation = installCancellation({
           onFirstInterrupt: () => {
             ui.stopSpinner();
+            if (options.watch === true) {
+              // Idle: nothing to cancel, leave quietly. Running: abort the run.
+              watcher?.close();
+              if (running) ui.warn('Cancelling…');
+              return;
+            }
             ui.warn('Cancelling… press Ctrl+C again to exit immediately.');
           },
         });
 
-        try {
+        // Directories a run writes into; the watcher must not react to them.
+        const ignoredDirectories: string[] = [resolve(options.out ?? 'reports')];
+
+        // One full run. Sets `process.exitCode`; throws on configuration errors.
+        const executeOnce = async (): Promise<void> => {
           const project = await openProject(process.cwd(), paths);
+          if (project.config.reports?.outDir) {
+            ignoredDirectories.push(resolve(project.config.reports.outDir));
+          }
           if (project.suites.length === 0) {
             ui.error(
               formatCliError(new ConfigError('No test suites were found'), ui, {
@@ -261,7 +298,56 @@ export function registerTestCommand(program: Command): void {
               );
             process.exitCode = onlyNetworkErrors ? EXIT_NETWORK : EXIT_CHECKS_FAILED;
           }
+        };
+
+        try {
+          if (options.watch !== true) {
+            await executeOnce();
+          } else {
+            const root = (await findProjectRoot(process.cwd())) ?? process.cwd();
+            const envFileDirectory = options.envFile
+              ? dirname(resolve(options.envFile))
+              : undefined;
+            const outsideRoot =
+              envFileDirectory !== undefined && relative(root, envFileDirectory).startsWith('..');
+            watcher = createFileWatcher({
+              root,
+              ignore: ignoredDirectories,
+              ...(outsideRoot && envFileDirectory ? { extraDirectories: [envFileDirectory] } : {}),
+              ...(hooks.watch ? { watch: hooks.watch } : {}),
+              ...(hooks.debounceMs !== undefined ? { debounceMs: hooks.debounceMs } : {}),
+            });
+
+            let changed: string[] | undefined = [];
+            while (changed !== undefined && !cancellation.interrupted) {
+              if (changed.length > 0) {
+                // Clear a real terminal; otherwise (pipes, CI logs) delimit the run.
+                if (process.stdout.isTTY === true)
+                  process.stdout.write('\u001B[2J\u001B[3J\u001B[H');
+                else ui.line(`\n──── Re-running: ${changed.join(', ')} ────`);
+              }
+              running = true;
+              try {
+                await executeOnce();
+              } catch (error) {
+                // A broken suite must not end the session: show it and keep waiting.
+                if (cancellation.interrupted) break;
+                ui.stopSpinner();
+                ui.error(formatCliError(toApiForgeError(error), ui, {}));
+                process.exitCode = EXIT_CONFIG;
+              } finally {
+                running = false;
+              }
+              if (cancellation.interrupted) break;
+              ui.line();
+              ui.line(ui.palette.gray('Watching for changes… press Ctrl+C to exit.'));
+              changed = await watcher.next();
+            }
+            watcher.close();
+            process.exitCode = EXIT_INTERRUPTED;
+          }
         } finally {
+          watcher?.close();
           cancellation.dispose();
         }
       } finally {

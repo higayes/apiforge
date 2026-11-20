@@ -9,6 +9,16 @@ are always listed under **Changed**.
 
 ## [Unreleased]
 
+### Added
+
+- `apiforge test --watch` (`-w`) runs the selected suites, then re-runs them
+  whenever a suite, environment or data file (`.yaml`, `.yml`, `.json`, `.csv`)
+  changes. The project is reloaded on every run, so edits are always picked up,
+  and a broken file is reported without ending the session. On a terminal the
+  screen is cleared between runs; when output is piped, each run is preceded by
+  a `──── Re-running: <files> ────` line. Ctrl+C exits with code 130.
+  `--watch` together with `--json` is rejected with a usage error (exit 2).
+
 ### Fixed
 
 - **The installed CLI did nothing.** The bundle only started when its own
