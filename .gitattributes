@@ -1,0 +1,22 @@
+# Normalize line endings to LF in the repository and in working trees on every
+# platform. Without this, Windows checkouts get CRLF and `prettier --check`
+# (run by `pnpm verify` and CI) reports every text file as unformatted.
+* text=auto eol=lf
+
+# Binary assets must never be normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.tgz binary
+
+# Windows-only scripts keep CRLF so cmd.exe batch files run correctly.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Lockfile is generated and must stay byte-identical for --frozen-lockfile.
+pnpm-lock.yaml text eol=lf -diff
