@@ -6,14 +6,15 @@ import {
   maskSecretPreservingShape,
   ConfigError,
 } from '@apiforge/engine';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { EXIT_CONFIG, EXIT_SUCCESS } from '../exit-codes.js';
 import { createUiFromCommand } from '../lib/context.js';
-import { detectProject } from '../lib/project.js';
+import { detectProject, renderEnvironmentTemplate } from '../lib/project.js';
 
 interface EnvCommandOptions {
   json?: boolean;
+  force?: boolean;
   color?: boolean;
   quiet?: boolean;
   verbose?: boolean;
@@ -31,7 +32,7 @@ interface EnvCommandOptions {
 export function registerEnvCommand(program: CommandType): void {
   const env = program
     .command('env')
-    .description('List and inspect environments (secrets are always masked)');
+    .description('List, create and inspect environments (secrets are always masked)');
 
   env
     .command('list')
@@ -143,6 +144,49 @@ export function registerEnvCommand(program: CommandType): void {
         for (const [key, value] of Object.entries(maskedSecrets)) {
           ui.line(`    ${key} = ${value}`);
         }
+      }
+      process.exitCode = EXIT_SUCCESS;
+    });
+
+  env
+    .command('new <name>')
+    .description('Create environments/<name>.yaml from the starter template')
+    .option('-f, --force', 'overwrite the file if it already exists')
+    .option('--json', 'emit machine-readable output')
+    .option('-q, --quiet', 'only print the final result')
+    .option('--no-color', 'disable coloured output')
+    .action(async (name: string, options: EnvCommandOptions) => {
+      const ui = createUiFromCommand(options);
+      // Validates the name (exit 2) before touching the filesystem.
+      const content = renderEnvironmentTemplate(name);
+      const project = await detectProject(process.cwd());
+      if (!project) {
+        throw new ConfigError('No APIFORGE project found in this directory or its parents', [
+          'Run `apiforge init` to create one.',
+        ]);
+      }
+      const directory = join(project.root, 'environments');
+      const relative = `environments/${name}.yaml`;
+      await mkdir(directory, { recursive: true });
+      try {
+        // 'wx' fails atomically if the file exists, unless --force is given.
+        await writeFile(join(directory, `${name}.yaml`), content, {
+          encoding: 'utf8',
+          flag: options.force ? 'w' : 'wx',
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new ConfigError(`Environment file already exists: ${relative}`, [
+            'Pass --force to overwrite it.',
+          ]);
+        }
+        throw error;
+      }
+
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify({ ok: true, name, file: relative }, null, 2)}\n`);
+      } else {
+        ui.success(`Created ${relative}`);
       }
       process.exitCode = EXIT_SUCCESS;
     });

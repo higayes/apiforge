@@ -8,6 +8,9 @@ import { existsSync } from 'node:fs';
 import {
   ConfigError,
   loadProject,
+  parseDocument,
+  parseEnvironmentDocument,
+  UsageError,
   type LoadProjectOptions,
   type ProjectContext,
 } from '@apiforge/engine';
@@ -128,6 +131,31 @@ tests:
 `,
   },
 ];
+
+/** Environment names become file names, so only a safe, flat character set is accepted. */
+const ENVIRONMENT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+export function assertValidEnvironmentName(name: string): void {
+  if (!ENVIRONMENT_NAME_PATTERN.test(name)) {
+    throw new UsageError(`Invalid environment name "${name}"`, [
+      'Use letters, digits, "-" and "_" only, starting with a letter or digit (no path separators or "..").',
+    ]);
+  }
+}
+
+/** Template for a new environment file; the same shape `apiforge init` writes. */
+export function renderEnvironmentTemplate(name: string): string {
+  assertValidEnvironmentName(name);
+  const content = `# ${name} environment.
+baseUrl: https://${name}.example.com
+variables:
+  apiVersion: v1
+secrets: {}   # keep secrets in environment variables or CI secrets
+`;
+  // Guarantee the scaffold passes the same validation as `apiforge env validate`.
+  parseEnvironmentDocument(parseDocument(content, `${name}.yaml`), `${name}.yaml`);
+  return content;
+}
 
 export interface InitOptions {
   directory?: string;
