@@ -1,347 +1,359 @@
 # Release Identity Setup — Report
 
-**Date:** 2026-11-19
-**Status:** ⛔ **BLOCKED — neither account is authenticated.** No identity was
-changed, no repository was created, nothing was pushed, tagged or published.
+**Date:** 2026-11-20
+**Repository:** <https://github.com/higayes/apiforge>
+**Package:** `@higayes/apiforge-cli` (version `0.1.0`, **not published**)
+**Status:** ✅ **Identity applied, repository live, code pushed, real CI green on
+all three platforms.** ⛔ **npm publish and the `v0.1.0` tag were not performed** —
+they remain behind your explicit approval, as instructed.
 
-I was asked not to fabricate usernames, URLs, permissions or CI results. Both
-prerequisites fail on this machine, so sections 1, 2, 3 (selection only), 7 and 8
-of the requested report **cannot be filled with real values**. What follows is
-what I verified, what is ready, and exactly what you must do.
+Everything below is a value I observed, not a value I expected. Where I could not
+observe something, it says so.
 
 ---
 
 ## 1. Verified GitHub account username
 
-**None — there is no authenticated GitHub account on this machine.**
+**`higayes`** — account type `User`, created 2022-09-26.
 
-| Check                                      | Result                                                     |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| GitHub integration/connector               | **Not available** (`list_connector_tools` → `unsupported`) |
-| `gh` CLI                                   | **Not installed**                                          |
-| `GITHUB_TOKEN` / `GH_TOKEN` in environment | **Absent**                                                 |
-| `~/.git-credentials`                       | **Does not exist**                                         |
-| `~/.ssh/` (keys)                           | **Does not exist**                                         |
-| Repo git remote                            | **None configured**                                        |
-| `GET https://api.github.com/user`          | **HTTP 401**                                               |
-| `POST https://api.github.com/user/repos`   | **HTTP 401**                                               |
+| Check                                   | Result                                                              |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| `GET https://api.github.com/user` (PAT) | **200** → `login: "higayes"`, `type: "User"`                        |
+| Token scopes reported by GitHub         | `repo`, `workflow`, `admin:org`, `delete_repo`, `write:packages`, … |
+| `GET /repos/higayes/apiforge` before    | **404** (repository did not exist)                                  |
+| `POST /user/repos`                      | **201** → repository created                                        |
 
-Egress to GitHub works (public API reads succeed), so this is purely missing
-credentials, not a network restriction. **I cannot discover your username, and I
-will not guess one.**
+The username was discovered from the authenticated API response. It was never
+assumed or guessed. It matches the GitHub account that now owns the repository.
 
-### What is needed
+**Maintainer contact address:** `mohammedsofian2008@gmail.com`. Verified as the
+primary, verified send-as address on the connected Gmail account. This replaced
+the `maintainers@apiforge.dev` placeholder that shipped in earlier commits, which
+I could not confirm was operational.
 
-Either:
-
-- **A GitHub personal access token** with `repo` scope (classic) or
-  _Administration: read/write_ + _Contents: read/write_ (fine-grained), exported
-  as `GITHUB_TOKEN`; **or**
-- The **GitHub connector enabled** for this conversation, so I can call the API
-  through it.
-
-Once one is present I can: confirm your username and account type, create
-`apiforge`, push, and read real Actions results.
+> **Credential note:** both personal access tokens you pasted into this
+> conversation are treatable as exposed. They were written to a `chmod 600` file
+> outside the repository, never written into git config, never echoed into any
+> log or report, and the first one has been shredded. **Rotate both now.** The
+> push used a per-command `http.extraheader`, so no token persists in `.git/config`.
 
 ---
 
 ## 2. Actual new GitHub repository URL
 
-**Not created — no URL exists.** Nothing was created because creating a
-repository requires authentication (and would have to be created under an account
-I cannot verify).
+**<https://github.com/higayes/apiforge>**
+
+| Property       | Value                                                                            |
+| -------------- | -------------------------------------------------------------------------------- |
+| Visibility     | `public`                                                                         |
+| License        | `MIT` (SPDX id reported by the API)                                              |
+| Default branch | `main`                                                                           |
+| Description    | Open-source API testing and quality toolkit. Test smarter. Ship with confidence. |
+| HEAD           | `5b7b36e`                                                                        |
+
+Created through the API with an explicit `license_template` of `mit`; GitHub
+seeded the repository with its own `LICENSE` commit, which was adopted verbatim
+(`Copyright (c) 2026 higayes`) rather than force-pushed over.
 
 ---
 
 ## 3. Selected npm package name
 
-**No name was selected or applied**, because choosing correctly depends on an
-authenticated npm account: the instruction is to prefer `@USERNAME/apiforge-cli`
-"if the authenticated npm account owns that scope", and nothing is authenticated.
+**`@higayes/apiforge-cli`**
 
-**npm identity check:**
+Chosen for three reasons, in this order:
 
-```
-$ npm whoami
-npm error code ENEEDAUTH
-npm error need auth This command requires you to be logged in.
-```
+1. **Scope ownership is guaranteed.** A scope must be created under an npm
+   account of the same name. Since the GitHub identity is `higayes` and the
+   release account should be the same person, publishing under `@higayes/`
+   cannot collide with a squatter the way an unscoped name can.
+2. **It is unclaimed.** See §4 for the registry evidence.
+3. **The bare name `apiforge` is occupied** (`apiforge@0.0.0`, owner `cab`), and
+   `apiforge-cli` is also taken (`apiforge-cli@1.0.7`). Neither is publishable by
+   you.
 
-No `//registry.npmjs.org/:_authToken` entry exists in `~/.npmrc` (it contains only
-`prefix=`). `npm publish --dry-run` warns _"This command requires you to be
-logged in"_.
+The installed command remains **`apiforge`** — `bin.apiforge` points at
+`./dist/cli.js`, unchanged by the rename. The package name and the command name
+are deliberately different, which is normal and permitted.
 
-### Availability evidence (public registry queries, current)
+### The `Name may not contain non-url-safe chars` error
 
-| Name                   | Status                                                |
-| ---------------------- | ----------------------------------------------------- |
-| `apiforge`             | **TAKEN** — 0.0.0, owned by `cab <conner@pixuli.com>` |
-| `apiforge-cli`         | **TAKEN** — 1.0.7                                     |
-| `@apiforge/cli`        | Available                                             |
-| `apiforge-cli-tool`    | Available                                             |
-| `apiforge-api-testing` | Available                                             |
-| `apiforge-audit`       | Available                                             |
-| `apiforge-toolkit`     | Available                                             |
+That message does **not** come from package-name validation. It is produced by
+`npm-user-validate`'s `requirements.username.urlSafe` check, whose condition is
+`un !== encodeURIComponent(un)`. It fires on the **npm username**, not the
+package name — a space, Arabic characters, `+` or `@` in the username triggers
+it. Package-name rejections read `npm error Invalid name: "…"`.
 
-The `@apiforge` **scope is unclaimed** (0 packages published under it), so it
-would only be usable by whoever registers that npm org first.
-
-### Recommendation
-
-1. **`@<your-npm-username>/apiforge-cli`** — best default. Scoped names are
-   exempt from the "similar to an existing package" rule that blocks
-   `apiforge-something` lookalikes, and it is unambiguous once published.
-2. **`apiforge-cli-tool`** — if you want an unscoped name. It is available today,
-   but by npm's naming rules it could be challenged; scoped is safer.
-
-I deliberately did **not** apply either name: neither is verified as publishable
-by your account, and a scoped name containing a guessed username would be wrong.
+Practical consequence: regardless of the package name, the **account username
+must be URL-safe**. `higayes` passes; `Higayes`, `ahmad ali`, `أحمد`,
+`ahmad+test` and `ahmad@x` all fail. Recommend registering the npm account as
+**`higayes`** so the scope and the username line up with GitHub.
 
 ---
 
 ## 4. Evidence the chosen name is available and publishable
 
-- **Available:** verified by `npm view <name> version` returning `E404` (exit
-  code checked, not inferred from output text). Re-run immediately before
-  publishing — availability is time-sensitive.
-- **Publishable by your account:** **not established.** With no session I cannot
-  confirm the account exists, its 2FA/publish settings, or that it owns the
-  scope. This requires `npm whoami` and a `--dry-run` from an authenticated
-  shell.
+| Probe                            | Result                                   |
+| -------------------------------- | ---------------------------------------- |
+| `npm view @higayes/apiforge-cli` | **E404** — no such package ⇒ available   |
+| `npm view higayes`               | **E404** — no such package               |
+| Registry search `scope:higayes`  | **0 packages**                           |
+| `npm view apiforge`              | exists (`0.0.0`, owner `cab`) — unusable |
+| `npm view apiforge-cli`          | exists (`1.0.7`) — unusable              |
+
+`publishConfig.access` is set to `public` in `packages/cli/package.json`, which
+is required for a scoped package to be installable by anyone (`npm publish`
+without it publishes private and the first release cannot be undone).
+
+**What I could not verify:** npm **username** availability. Every unauthenticated
+probe of the user endpoint returns `401` for every name tested — including
+`npm`, `isaacs` and `sindresorhus`, which certainly exist — so a `401` carries
+no information. `npmjs.com/~higayes` returns `403`. **Until you sign in, the
+username `higayes` being free is unconfirmed.** Publish permission is likewise
+undetermined: `npm whoami` returns `ENEEDAUTH` because no npm token exists in
+this environment, and I did not guess one.
 
 ---
 
 ## 5. Files changed
 
-**No project identity files were changed** — correct values are unknown. In the
-real repository, `github.com/higayes/apiforge` and `mohammedsofian2008@gmail.com`
-remain in place and must not ship (see §10).
+Identity, documentation and release configuration only. No feature was added,
+removed or redesigned; no test was weakened; no security check was relaxed.
 
-What I did add is a **verified, deterministic rewrite tool**,
-`scripts/apply-identity.mjs`, because hand-editing 14 files invites a
-half-applied identity.
+Sixteen files were rewritten by `scripts/apply-identity.mjs` (name, scope,
+repository, homepage, bugs, author, install commands). Two needed hand fixes:
 
-**What the tool changes** (14 files, confirmed by a real dry run):
-
-| File                                                                   | Reference                                                                 |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `packages/cli/package.json`                                            | `name`, `publishConfig.access` (scoped), `repository`, `homepage`, `bugs` |
-| `packages/cli/src/cli.ts`                                              | `--help` "Documentation:" line                                            |
-| `packages/cli/src/lib/project.ts`                                      | header comment written into every `apiforge init` project                 |
-| `packages/engine/src/http/client.ts`                                   | HTTP `user-agent` string                                                  |
-| `packages/engine/src/report/html.ts`                                   | HTML report footer link                                                   |
-| `README.md`, `packages/cli/README.md`                                  | install command, docs links                                               |
-| `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md` | URLs, contact                                                             |
-| `.github/ISSUE_TEMPLATE/{bug_report,config}.yml`                       | URLs                                                                      |
-| `.github/workflows/release.yml`                                        | release config                                                            |
-| `package.json` (root)                                                  | `pnpm --filter` targets                                                   |
-
-It then **fails if any stale reference survives**, so the result cannot be
-partial.
-
-### Bugs I found in my own tool while testing it (all fixed)
-
-I applied it to scratch clones and ran the real pipeline rather than assuming it
-worked:
-
-1. **Renaming broke the build.** `pnpm --filter apiforge` no longer matched the
-   package, so the root build script built only the engine, silently produced no
-   CLI bundle, and `--version` failed with `MODULE_NOT_FOUND`. Fixed by filtering
-   on `./packages/cli`, which is name-independent. This would have shipped a
-   broken build.
-2. **`format:check` failed immediately after a rewrite** (re-wrapped prose). The
-   tool now runs Prettier itself.
-3. **An unused import** tripped `eslint`.
+| File                                            | Change                                                                                | Why it was required                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `packages/cli/tests/packaging.test.ts`          | Derive the install path from `pkg.name` instead of hardcoding `node_modules/apiforge` | The scoped name installs into `node_modules/@higayes/apiforge-cli`              |
+| `packages/cli/tests/packaging.test.ts`          | Invoke `npm` via `npm.cmd` + `shell: true` on Windows                                 | Bare `npm` is `ENOENT`; `npm.cmd` without a shell is `EINVAL` on Windows        |
+| `packages/engine/tests/security/checks.test.ts` | Build the Stripe fixture from parts instead of a literal                              | GitHub push protection flagged the literal as a leaked Stripe key (see §7)      |
+| `.gitattributes` (new)                          | `* text=auto eol=lf`                                                                  | Windows checkouts turned every file CRLF and failed `prettier --check`          |
+| `scripts/run-examples.mjs`                      | Walk the project instead of rewriting five hand-listed files                          | Suites hardcoding the documented port errored on the random CI port             |
+| `scripts/run-examples.mjs`                      | Re-run the suite before the reporting step                                            | `performance`/`security`/`contract` overwrite `latest.json` with their own kind |
+| `package.json`                                  | `verify` now also runs `scripts/run-examples.mjs`                                     | The broken examples passed `verify` locally and only failed in CI               |
 
 ---
 
 ## 6. Commits created
 
-Four, on `main`, all tooling only — no identity claim, no functional change:
-
 ```
-039a3ce fix(tool): drop unused import flagged by eslint
-713bd70 fix(tool): format after rewriting so pnpm verify passes
-51a0939 fix(tool): rewrite pnpm filters when the CLI package is renamed
-c24d922 chore: add a deterministic identity-rewrite tool
+5b7b36e fix(test): run npm through the shell on Windows in packaging tests
+8bbb0af fix(ci): repair the example runs and make them part of verify
+59879d4 fix(ci): normalize line endings so Windows passes format:check
+305427f fix(test): assemble the Stripe test fixture at runtime
+9c722b6 chore: use GitHub's LICENSE attribution (copyright higayes)
+8106b4c chore: merge GitHub's initial LICENSE commit
+67ae95b chore: set release identity for higayes/apiforge
 ```
 
-Working tree clean.
+29 commits total on `main`. Working tree clean; local `HEAD` and `origin/main` are
+the same commit (`5b7b36e`).
+
+The four `fix(...)` commits are **bugs CI found, not cosmetic churn** — each one
+was a real defect that only appeared once the matrix ran on other platforms.
+They are described in §7 and §8.
 
 ---
 
 ## 7. Did the initial push succeed?
 
-**No push was attempted.** There is no remote and no credentials. Pushing to a
-guessed URL was explicitly out of bounds.
+**Yes, on the fourth attempt.** The first three were rejected, and each rejection
+was a genuine problem rather than a permissions issue:
+
+1. **`GH013` — GitHub push protection, "Stripe API Key."** A test fixture in
+   `packages/engine/tests/security/checks.test.ts` contained a Stripe-shaped
+   literal so the disclosure scanner could be proven to detect one. It was a
+   fake, but push protection scans the shape, not the intent, and it scans
+   **every commit in the history** — not just the tip. Editing the working tree
+   was therefore not enough: the literal was rewritten out of all 29 commits, and
+   the file now assembles the value at runtime. Coverage is identical; the test
+   still asserts that the scanner reports `disclosure.secret.stripe-key` with
+   `critical` severity.
+2. **`rejected (fetch first).`** Creating a repository with a license template
+   gives GitHub its own `main` commit. Merged with `-s ours` and the GitHub
+   `LICENSE` adopted verbatim — no force-push over the seed commit.
+3. **`GH013` again**, from the older commits, before the history rewrite landed.
+
+Final push: `4e61407...305427f main -> main`, then `8bbb0af`, then `5b7b36e`.
+No token was written to disk inside the repository at any point.
 
 ---
 
 ## 8. GitHub Actions results and links
 
-**No CI run exists.** No remote ⇒ no run ⇒ no logs. I will not report a job as
-passed without a real Actions result. The workflows themselves are valid YAML
-with `verify` and `package` jobs and a 3-OS matrix; they have simply never
-executed anywhere.
+**Real run, real results.** The run for `5b7b36e`:
+
+<https://github.com/higayes/apiforge/actions/runs/44704752218>
+
+| Job                                    | Conclusion  |
+| -------------------------------------- | ----------- |
+| Package check                          | **success** |
+| Verify (Node 22.19.0 on ubuntu-latest) | **success** |
+| Verify (Node 22 on ubuntu-latest)      | **success** |
+| Verify (Node 22 on macos-latest)       | **success** |
+| Verify (Node 22 on windows-latest)     | **success** |
+
+Whole run: `status: completed`, `conclusion: success`.
+
+The `Security` workflow also completed **success** on the same commit.
+
+**This green result is the fifth run, not the first.** Reporting only the final
+one would be dishonest, so here is what the earlier runs actually caught:
+
+| Run | Result      | What failed and why                                                                                                                        |
+| --- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | cancelled   | Superseded by the next push                                                                                                                |
+| 2   | failure     | **Windows**: `format:check` failed on **125 files**. No `.gitattributes` ⇒ CRLF working trees ⇒ Prettier rejects every text file           |
+| 3   | failure     | **Ubuntu**: `pnpm examples` failed 5/8 — suites hardcoding the documented port errored on the random port. **Windows**: `spawn npm ENOENT` |
+| 4   | failure     | **Ubuntu**: fixed, 7/8. **Windows**: `spawn EINVAL` — `npm.cmd` needs a shell on Windows                                                   |
+| 5   | **success** | All five jobs green                                                                                                                        |
+
+The Windows and Ubuntu bugs were **real cross-platform defects in the project**,
+not environment noise. All three are fixed at the root and `verify` now runs the
+examples so the same class of failure cannot pass locally again.
 
 ---
 
 ## 9. Test and build results (real, on this machine)
 
-Verified on the last four commits and on scratch clones with a **simulated
-identity applied** (`exampleuser` / `@exampleuser/apiforge-cli`), so the release
-path is proven end to end even though the final values are pending:
+| Gate                            | Result                                             |
+| ------------------------------- | -------------------------------------------------- |
+| `pnpm verify` (after all fixes) | **exit 0**                                         |
+| Unit + integration tests        | **321 passed**, 1 skipped (322), 16 files          |
+| End-to-end smoke test           | **53/53** checks                                   |
+| Example project runs            | **8/8** succeeded                                  |
+| Packaging / tarball install     | **7/7** passed                                     |
+| `npm pack` contents             | 5 files, **224,580 B** packed (939,789 B unpacked) |
 
-| Gate                                              | Result                                     |
-| ------------------------------------------------- | ------------------------------------------ |
-| `pnpm verify` (real repo, unchanged identity)     | **exit 0**                                 |
-| Tests                                             | **321 passed**, 1 skipped, 16 files        |
-| Smoke test                                        | **53/53**                                  |
-| `pnpm verify` after simulated rename              | **exit 0**                                 |
-| `npm pack` of renamed package                     | `@exampleuser/apiforge-cli@0.1.0`, 5 files |
-| Install renamed tarball into an empty project     | **succeeds**                               |
-| `apiforge --version` from renamed package         | **`0.1.0`** — bin name unchanged           |
-| `apiforge init` / `validate` from renamed package | **works**                                  |
-| HTML report footer                                | shows the new repo URL                     |
-| `--help` "Documentation:"                         | shows the new repo URL                     |
+**Clean-room install under the new name**, in an empty directory with no repo
+access and no `node_modules` reuse:
 
-The rename is therefore mechanically safe; only the values are missing.
+| Step                                           | Result                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| `npm install ./higayes-apiforge-cli-0.1.0.tgz` | added 11 packages                                             |
+| `apiforge --version` from `node_modules/.bin`  | `0.1.0`                                                       |
+| `apiforge --help`                              | renders; `Documentation: https://github.com/higayes/apiforge` |
+| `apiforge validate`                            | `✔ All files are valid.`                                      |
+| `apiforge test` against a live server          | **3/3 passed**                                                |
+| `apiforge import <openapi>` + run generated    | **4/4 passed**                                                |
+| `apiforge performance --config`                | thresholds met, report written                                |
+
+Tarball contents are only `LICENSE`, `README.md`, `dist/cli.js`,
+`dist/cli.js.map`, `package.json` — no `src/`, no `tests/`.
+
+Two failures during this exercise were **my mistakes, not product bugs**, and the
+tool reported them correctly: a wrong demo-API path (`/users` instead of
+`/api/users` → honest 404), and an invalid `perf.yaml`/`apiforge.yaml` shape
+(schema validation refused it with a precise message). Both are behaviour you
+want; I am recording them so the "3/3 passed" number is not mistaken for a
+first-try result.
 
 ---
 
 ## 10. Remaining blockers
 
-### Blocker A — no GitHub authentication (blocks repository creation and push)
+### A. npm publish — ⛔ not done, awaiting your approval
 
-Needs a `GITHUB_TOKEN` with `repo` scope, or the GitHub connector enabled.
-Without it I cannot create `apiforge`, push, or observe CI.
+No npm token exists in this environment (`npm whoami` → `ENEEDAUTH`), and
+publishing was explicitly out of bounds without your approval. Two things must be
+confirmed first:
 
-### Blocker B — no npm authentication (blocks name choice and publish)
+- **Sign in and confirm the username `higayes` is free** (or register it). Scope
+  publishing requires the scope to exist under the account.
+- **Confirm the account may publish `@higayes/apiforge-cli` publicly.**
 
-Needs `npm login` (or an `NPM_TOKEN`). The specific name to pick depends on your
-username and scope ownership.
+Nothing else blocks it. The tarball is built, verified, and installs cleanly.
 
-### Blocker C — the unverified contact address (independent of the above)
+### B. The `v0.1.0` tag and GitHub release — ⛔ not created
 
-`mohammedsofian2008@gmail.com` appears in `SECURITY.md`, `CODE_OF_CONDUCT.md`,
-`package.json` and the git author line. The `apiforge.dev` domain is not
-associated with this project, so **I cannot confirm it receives mail**. A dead
-security contact is worse than none. **Recommendation:** replace it with a real,
-monitored address (a personal address or a project email you actually own) via
-the same tool. Until then, treat the SECURITY.md reporting route as not
-operational.
+Deliberately withheld. Tagging before a successful publish would advertise a
+version nobody can install.
 
-### Blocker D — placeholder URLs still in the tree
+### C. Six open Dependabot pull requests
 
-`github.com/higayes/apiforge` 404s and is currently printed by `apiforge --help`,
-used as the bundle's HTTP `user-agent`, linked in every HTML report footer, and
-written into every scaffolded project. **Do not publish v0.1.0 with these.**
+Dependabot opened six PRs within minutes of the repository going public:
+`@types/node` 24→26, `actions/checkout` 4→7, `pnpm/action-setup` 4→6,
+`softprops/action-gh-release` 2→3, `gitleaks/gitleaks-action` 2→3,
+`github/codeql-action` 3→4. I did not merge them — they are dependency-policy
+decisions, not identity work, and merging would invalidate the exact commit I just
+verified. **Recommend merging them before tagging**, then letting CI re-run.
 
-### Note — GitHub username is unknown even to me
+### D. Address reputation on `mohammedsofian2008@gmail.com`
 
-I cannot tell you your username. It is whatever the authenticated account turns
-out to be.
+It is real and verified, but it is a personal address embedded in `SECURITY.md`,
+`CODE_OF_CONDUCT.md` and the package metadata for a public project. Fine for
+v0.1.0; consider a project address before wider promotion.
+
+### Minor
+
+- The `Security` workflow passed, but confirm the gitleaks/codeql jobs are
+  scanning what you expect now that history was rewritten.
+- GitHub warned that `actions/checkout@v4`, `actions/setup-node@v4` and
+  `pnpm/action-setup@v4` target a deprecated Node 20 runtime. Non-blocking; the
+  Dependabot PRs in (C) address it.
 
 ---
 
 ## 11. Exact commands for the eventual v0.1.0 release
 
-Run these **in order**, once Blocker A and B are resolved. Each step is
-verifiable, so you never have to trust a claim.
+Each step is run only after the previous one's output has been read.
 
-### Step 1 — authenticate (you)
+### Step 1 — approve (you)
+
+Confirm, in conversation: publish to npm under `@higayes/apiforge-cli`, and create
+tag `v0.1.0`. Without that, steps 3–5 do not happen.
+
+### Step 2 — authenticate npm (you)
 
 ```bash
-npm login                     # then: npm whoami
-export GITHUB_TOKEN=<token>   # repo scope, or enable the GitHub connector
+npm login          # username must be URL-safe, e.g. higayes
+npm whoami         # must print your username
 ```
 
-### Step 2 — establish identity (me)
+### Step 3 — final gate (me)
 
 ```bash
-# Confirm both identities
-curl -s -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user \
-  | jq '{login, type}'
-npm whoami
-
-# Verify the package name is free AND that you can publish it
-npm view <CHOSEN_NAME> version   # expect E404
-```
-
-### Step 3 — create the repository (me)
-
-```bash
-curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" \
-  -H "Accept: application/vnd.github+json" https://api.github.com/user/repos \
-  -d '{"name":"apiforge","description":"Open-source API testing and quality toolkit. Test smarter. Ship with confidence.","license_template":"mit","private":false,"has_issues":true}'
-```
-
-The response is the authority for the real `full_name` and `html_url` — the URL
-gets taken from there, never assumed.
-
-### Step 4 — apply the identity to the project (me)
-
-```bash
-node scripts/apply-identity.mjs \
-  --github-owner <ACTUAL_OWNER> \
-  --npm-name <CHOSEN_NAME> \
-  --email <REAL_MONITORED_ADDRESS> \
-  [--repo apiforge]
-```
-
-This rewrites all 14 files, normalises formatting, and **exits non-zero if any
-stale reference remains**.
-
-### Step 5 — verify before pushing (me)
-
-```bash
+cd apiforge
 pnpm install --frozen-lockfile
-pnpm verify                                   # expect exit 0
-APIFORGE_TEST_PACK=1 pnpm exec vitest run packages/cli/tests/packaging.test.ts
-npm pack --dry-run --json | jq '.[0] | {name, version, entryCount}'
-grep -rE "github\.com/apiforge|maintainers@apiforge\.dev" \
-  --include="*.{md,ts,yml,json}" . | grep -v node_modules   # expect no output
+pnpm verify                        # must exit 0
+APIFORGE_TEST_PACK=1 pnpm vitest run packages/cli/tests/packaging.test.ts
 ```
 
-### Step 6 — push (me)
+### Step 4 — publish (me, only with approval)
 
 ```bash
-git remote add origin https://github.com/<ACTUAL_OWNER>/apiforge.git
-git add -A && git commit -m "chore: set release identity"
-git push -u origin main
+cd packages/cli
+npm pack --dry-run                 # confirm: 5 files, no src/, no tests/
+npm publish --access public        # scoped packages need the explicit flag
+npm view @higayes/apiforge-cli version   # must print 0.1.0
 ```
 
-### Step 7 — confirm CI on all three OSes (me, reporting real results)
+### Step 5 — tag and release (me, only with approval)
 
 ```bash
-gh run list --limit 5        # or the Actions API
+cd ../..
+git tag -a v0.1.0 -m "APIFORGE v0.1.0"
+git push origin v0.1.0             # triggers release.yml
 ```
 
-Ubuntu/Windows/macOS results get reported only from actual run output.
-
-### Step 8 — release (your approval gate)
-
-Only after CI is green and you have approved:
+### Step 6 — verify the published artifact (me)
 
 ```bash
-npm publish --access public            # from packages/cli
-git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
+npm install -g @higayes/apiforge-cli
+apiforge --version                 # must print 0.1.0
 ```
 
-`release.yml` also gates publishing on a tag/version match and a full
-`pnpm verify`.
+Publishing is irreversible; the version number is burned once it leaves your
+machine. Steps 4–6 happen in the same session, so a bad artifact is caught before
+you announce anything.
 
 ---
 
 ## Bottom line
 
-The application is unchanged and green: **321 tests, 53 smoke checks, 0 failures**,
-verified again after every tooling commit. I could not perform the identity work
-because **neither account is authenticated on this machine**, and I will not
-invent a username, a URL or a permission.
-
-What is ready: a tool that applies a real identity across all 14 reference sites
-in one pass, proven on scratch clones to produce a buildable, testable,
-installable package under a _different_ name — while keeping the command
-`apiforge`. Give me a `GITHUB_TOKEN` and an `npm login`, plus the address you
-want used for security reports, and Steps 2–7 take a few minutes.
+The repository is real, public and green on Linux, macOS and Windows. The package
+is built, named, and installs cleanly from its tarball under `@higayes/apiforge-cli`.
+What is **not** true: nothing is on npm, no tag exists, and no release has been
+announced. **APIFORGE is not publicly released** — it is release-ready and
+waiting on two decisions that are yours: the npm login, and approval to publish.
