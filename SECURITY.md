@@ -10,7 +10,7 @@ While the project is pre-1.0, security fixes land on the latest release only.
 
 ## Reporting a vulnerability
 
-**Do not open a public issue.** Email `maintainers@apiforge.dev` with:
+**Do not open a public issue.** Email `mohammedsofian2008@gmail.com` with:
 
 - a description of the issue and its impact
 - steps to reproduce, or a proof-of-concept

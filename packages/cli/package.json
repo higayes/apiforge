@@ -1,7 +1,7 @@
 {
-  "name": "apiforge",
+  "name": "@higayes/apiforge-cli",
   "version": "0.1.0",
-  "description": "APIFORGE CLI \u2014 API testing, validation, performance testing and security analysis. Test smarter. Ship with confidence.",
+  "description": "APIFORGE CLI — API testing, validation, performance testing and security analysis. Test smarter. Ship with confidence.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -27,11 +27,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apiforge/apiforge.git"
+    "url": "git+https://github.com/higayes/apiforge.git"
   },
-  "homepage": "https://github.com/apiforge/apiforge#readme",
+  "homepage": "https://github.com/higayes/apiforge#readme",
   "bugs": {
-    "url": "https://github.com/apiforge/apiforge/issues"
+    "url": "https://github.com/higayes/apiforge/issues"
   },
   "scripts": {
     "build": "tsup",
@@ -50,5 +50,8 @@
   "devDependencies": {
     "@apiforge/engine": "workspace:*",
     "tsup": "^9.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

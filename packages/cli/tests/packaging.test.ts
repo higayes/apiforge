@@ -186,7 +186,10 @@ describe('packaging', () => {
           env: { ...process.env, npm_config_loglevel: 'error' },
         });
 
-        const bin = join(workDir, 'node_modules', 'apiforge', 'dist', 'cli.js');
+        // Follow the real package name: the binary is always `apiforge`, but the
+        // install directory is the package name, which may be scoped.
+        const pkgName = (await packageJson()).name as string;
+        const bin = join(workDir, 'node_modules', ...pkgName.split('/'), 'dist', 'cli.js');
         const version = await exec(process.execPath, [bin, '--version'], { cwd: workDir });
         expect(version.stdout.trim()).toBe((await packageJson()).version);
 

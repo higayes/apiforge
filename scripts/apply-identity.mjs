@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 const OLD_OWNER = 'apiforge';
 const OLD_REPO = 'apiforge';
 const OLD_PACKAGE = 'apiforge';
-const OLD_EMAIL = 'maintainers@apiforge.dev';
+const OLD_EMAIL = 'mohammedsofian2008@gmail.com';
 
 function parseArgs(argv) {
   const out = { repo: 'apiforge', dryRun: false };
@@ -89,10 +89,10 @@ console.log(args.dryRun ? '  (dry run — nothing written)\n' : '\n');
 // --- tracked files that carry an identity -----------------------------------
 const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean);
 
-// Longest-first so `github.com/apiforge/apiforge` wins over bare `apiforge`.
+// Longest-first so `github.com/higayes/apiforge` wins over bare `apiforge`.
 const replacements = [
-  ['https://github.com/apiforge/apiforge', newRepoUrl],
-  ['github.com/apiforge/apiforge', `github.com/${owner}/${repo}`],
+  ['https://github.com/higayes/apiforge', newRepoUrl],
+  ['github.com/higayes/apiforge', `github.com/${owner}/${repo}`],
   [OLD_EMAIL, newEmail],
 ];
 

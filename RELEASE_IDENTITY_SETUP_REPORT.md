@@ -114,7 +114,7 @@ by your account, and a scoped name containing a guessed username would be wrong.
 ## 5. Files changed
 
 **No project identity files were changed** — correct values are unknown. In the
-real repository, `github.com/apiforge/apiforge` and `maintainers@apiforge.dev`
+real repository, `github.com/higayes/apiforge` and `mohammedsofian2008@gmail.com`
 remain in place and must not ship (see §10).
 
 What I did add is a **verified, deterministic rewrite tool**,
@@ -223,7 +223,7 @@ username and scope ownership.
 
 ### Blocker C — the unverified contact address (independent of the above)
 
-`maintainers@apiforge.dev` appears in `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+`mohammedsofian2008@gmail.com` appears in `SECURITY.md`, `CODE_OF_CONDUCT.md`,
 `package.json` and the git author line. The `apiforge.dev` domain is not
 associated with this project, so **I cannot confirm it receives mail**. A dead
 security contact is worse than none. **Recommendation:** replace it with a real,
@@ -233,7 +233,7 @@ operational.
 
 ### Blocker D — placeholder URLs still in the tree
 
-`github.com/apiforge/apiforge` 404s and is currently printed by `apiforge --help`,
+`github.com/higayes/apiforge` 404s and is currently printed by `apiforge --help`,
 used as the bundle's HTTP `user-agent`, linked in every HTML report footer, and
 written into every scaffolded project. **Do not publish v0.1.0 with these.**
 

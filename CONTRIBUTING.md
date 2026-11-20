@@ -18,7 +18,7 @@ merged.
 
 This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By taking
 part you agree to uphold it. Report unacceptable behaviour to
-`maintainers@apiforge.dev`.
+`mohammedsofian2008@gmail.com`.
 
 ## Set up
 
@@ -28,7 +28,7 @@ Requirements:
 - **pnpm 9** (`corepack enable && corepack prepare pnpm@9.15.4 --activate`)
 
 ```bash
-git clone https://github.com/apiforge/apiforge.git
+git clone https://github.com/higayes/apiforge.git
 cd apiforge
 pnpm install
 pnpm test       # builds first: the CLI tests spawn dist/cli.js
@@ -152,7 +152,7 @@ Open an issue using the bug template and include:
 If you can reproduce it in `examples/demo-api`, say which file triggers it —
 that makes the bug far quicker to fix.
 
-**Security issues** go to `maintainers@apiforge.dev`, never to the public issue
+**Security issues** go to `mohammedsofian2008@gmail.com`, never to the public issue
 tracker. See [SECURITY.md](SECURITY.md).
 
 ## Proposing features

@@ -22,10 +22,10 @@ pass from a **clean clone**.
 
 The blockers are not code quality — they are **release identity**:
 
-| #   | Blocker                                                                                                               | Impact                                                                                                                                               |
-| --- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| B1  | The npm name `apiforge` is **already owned by another maintainer**                                                    | `npm publish` returns 403. Release cannot happen under this name.                                                                                    |
-| B2  | `github.com/apiforge/apiforge` **does not exist** (404); the `apiforge` GitHub account is an unrelated user from 2016 | Every documented URL is dead: repository link, issue tracker, security policy URL, CHANGELOG compare links, and the link printed by `apiforge init`. |
+| #   | Blocker                                                                                                              | Impact                                                                                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | The npm name `apiforge` is **already owned by another maintainer**                                                   | `npm publish` returns 403. Release cannot happen under this name.                                                                                    |
+| B2  | `github.com/higayes/apiforge` **does not exist** (404); the `apiforge` GitHub account is an unrelated user from 2016 | Every documented URL is dead: repository link, issue tracker, security policy URL, CHANGELOG compare links, and the link printed by `apiforge init`. |
 
 Both are decisions only the owner can make. Details and options in §9.
 
@@ -232,11 +232,11 @@ The bin name can stay `apiforge` regardless of the package name.
 ### B2 — the GitHub repository URL does not exist
 
 ```
-404  https://github.com/apiforge/apiforge
+404  https://github.com/higayes/apiforge
 200  https://github.com/apiforge        (a personal account created 2016, not an org)
 ```
 
-Nine tracked files reference `github.com/apiforge/apiforge`, including
+Nine tracked files reference `github.com/higayes/apiforge`, including
 `package.json` (`repository`, `homepage`, `bugs`), `SECURITY.md`, `CHANGELOG.md`
 compare links, issue-template links, and the "Documentation:" line printed by
 `apiforge --help`. Shipping as-is would send users, security reporters and
@@ -345,7 +345,7 @@ Complete in order. Items marked ⛔ block the release.
       add `"publishConfig": {"access": "public"}`, keep `bin: apiforge`, and
       re-run `npm pack` + install-from-tarball.
 - [ ] ⛔ **B2** Create the real repository, then replace the 9 files' references
-      to `github.com/apiforge/apiforge` and confirm the `maintainers@apiforge.dev`
+      to `github.com/higayes/apiforge` and confirm the `mohammedsofian2008@gmail.com`
       address receives mail (or replace it) — it is the only security contact.
 - [ ] Update `repository`, `homepage`, `bugs` in `packages/cli/package.json`.
 - [ ] Confirm `npm view <name>` is still free **at publish time**.

@@ -120,5 +120,5 @@ performance testing, security review, contract regression and reporting.
 - The security engine does not test authenticated-only endpoints unless you
   supply credentials; it never attempts exploitation.
 
-[Unreleased]: https://github.com/apiforge/apiforge/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/apiforge/apiforge/releases/tag/v0.1.0
+[Unreleased]: https://github.com/higayes/apiforge/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/higayes/apiforge/releases/tag/v0.1.0

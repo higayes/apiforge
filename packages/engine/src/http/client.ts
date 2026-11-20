@@ -446,7 +446,7 @@ export async function executeRequest(options: HttpRequestOptions): Promise<HttpR
     headers.cookie = serializeCookies(options.cookies);
   }
   if (!hasHeader(headers, 'user-agent'))
-    headers['user-agent'] = 'apiforge/0.1 (+https://github.com/apiforge/apiforge)';
+    headers['user-agent'] = 'apiforge/0.1 (+https://github.com/higayes/apiforge)';
 
   const dispatcher = options.dispatcher ?? getAgent(options.insecureTLS === true);
   const retries = Math.max(0, options.retries ?? 0);

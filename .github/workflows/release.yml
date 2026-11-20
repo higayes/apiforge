@@ -52,11 +52,11 @@ jobs:
 
       - name: Publish (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry-run
-        run: pnpm --filter apiforge publish --dry-run --no-git-checks --access public
+        run: pnpm --filter ./packages/cli publish --dry-run --no-git-checks --access public
 
       - name: Publish
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry-run)
-        run: pnpm --filter apiforge publish --no-git-checks --access public
+        run: pnpm --filter ./packages/cli publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -66,7 +66,7 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            See [CHANGELOG.md](https://github.com/apiforge/apiforge/blob/main/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/higayes/apiforge/blob/main/CHANGELOG.md) for details.
 
             ```bash
             npm install -g apiforge@${{ github.ref_name }}

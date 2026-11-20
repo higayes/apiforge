@@ -99,7 +99,7 @@ body:
       options:
         - label: I searched existing issues and this is not a duplicate
           required: true
-        - label: This is not a security vulnerability (those go to maintainers@apiforge.dev)
+        - label: This is not a security vulnerability (those go to mohammedsofian2008@gmail.com)
           required: true
         - label: I removed secrets, tokens and personal data from the pasted output
           required: true

@@ -49,7 +49,7 @@ Requires **Node.js 22.19+**.
 npx apiforge@latest init
 
 # or install globally
-npm install -g apiforge
+npm install -g @higayes/apiforge-cli
 apiforge init
 
 # or run from a checkout of this repository
@@ -354,7 +354,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g apiforge
+      - run: npm install -g @higayes/apiforge-cli
       - run: apiforge validate
       - run: apiforge test --reporter json,html,junit --env ci
         env:

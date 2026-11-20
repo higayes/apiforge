@@ -7,7 +7,7 @@
 An open-source API testing, validation, performance and security platform — one
 CLI for the checks that usually need four tools.
 
-[Quick start](#quick-start) · [Commands](#command-reference) · [Suite format](#suite-format) · [CI](#continuous-integration) · [Contributing](https://github.com/apiforge/apiforge/blob/main/CONTRIBUTING.md)
+[Quick start](#quick-start) · [Commands](#command-reference) · [Suite format](#suite-format) · [CI](#continuous-integration) · [Contributing](https://github.com/higayes/apiforge/blob/main/CONTRIBUTING.md)
 
 </div>
 
@@ -16,7 +16,7 @@ CLI for the checks that usually need four tools.
 > **Status: pre-1.0.** Everything documented here is implemented and covered by
 > automated tests (see [Project status](#project-status)). The CLI surface may
 > still change before 1.0; breaking changes will be listed in the
-> [CHANGELOG](https://github.com/apiforge/apiforge/blob/main/CHANGELOG.md).
+> [CHANGELOG](https://github.com/higayes/apiforge/blob/main/CHANGELOG.md).
 
 ## Why APIFORGE
 
@@ -49,7 +49,7 @@ Requires **Node.js 22.19+**.
 npx apiforge@latest init
 
 # or install globally
-npm install -g apiforge
+npm install -g @higayes/apiforge-cli
 apiforge init
 
 # or run from a checkout of this repository
@@ -217,8 +217,8 @@ apiforge env validate             # verify every environment file parses
 ## Suite format
 
 A suite is one YAML or JSON object. The complete reference is in
-[`docs/suite-format.md`](https://github.com/apiforge/apiforge/blob/main/docs/suite-format.md); project and environment files
-are covered in [`docs/configuration.md`](https://github.com/apiforge/apiforge/blob/main/docs/configuration.md). This is the tour.
+[`docs/suite-format.md`](https://github.com/higayes/apiforge/blob/main/docs/suite-format.md); project and environment files
+are covered in [`docs/configuration.md`](https://github.com/higayes/apiforge/blob/main/docs/configuration.md). This is the tour.
 
 ```yaml
 name: Users API
@@ -354,7 +354,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install -g apiforge
+      - run: npm install -g @higayes/apiforge-cli
       - run: apiforge validate
       - run: apiforge test --reporter json,html,junit --env ci
         env:
@@ -385,19 +385,19 @@ re-rendered with `apiforge report`.
 
 Honest accounting of what is built and verified:
 
-| Area                      | State               | Verification                                                                |
-| ------------------------- | ------------------- | --------------------------------------------------------------------------- |
-| HTTP engine               | complete            | integration tests against a local server                                    |
-| Assertions                | complete            | unit + integration tests                                                    |
-| Performance engine        | complete            | real measurements against a local server                                    |
-| Security engine           | complete            | 33 dedicated tests incl. secret-masking                                     |
-| Contract engine           | complete            | snapshot/compare tests incl. breaking changes                               |
-| OpenAPI import            | complete            | importer tests + generated suite runs                                       |
-| Reports (4 formats)       | complete            | reporter tests + smoke test                                                 |
-| CLI (14 commands)         | complete            | 46 end-to-end tests spawning the built binary                               |
-| Examples                  | complete            | `pnpm examples` runs all of them                                            |
-| Plugins                   | **not implemented** | see [ROADMAP.md](https://github.com/apiforge/apiforge/blob/main/ROADMAP.md) |
-| Pre/post-response scripts | **not implemented** | see [ROADMAP.md](https://github.com/apiforge/apiforge/blob/main/ROADMAP.md) |
+| Area                      | State               | Verification                                                               |
+| ------------------------- | ------------------- | -------------------------------------------------------------------------- |
+| HTTP engine               | complete            | integration tests against a local server                                   |
+| Assertions                | complete            | unit + integration tests                                                   |
+| Performance engine        | complete            | real measurements against a local server                                   |
+| Security engine           | complete            | 33 dedicated tests incl. secret-masking                                    |
+| Contract engine           | complete            | snapshot/compare tests incl. breaking changes                              |
+| OpenAPI import            | complete            | importer tests + generated suite runs                                      |
+| Reports (4 formats)       | complete            | reporter tests + smoke test                                                |
+| CLI (14 commands)         | complete            | 46 end-to-end tests spawning the built binary                              |
+| Examples                  | complete            | `pnpm examples` runs all of them                                           |
+| Plugins                   | **not implemented** | see [ROADMAP.md](https://github.com/higayes/apiforge/blob/main/ROADMAP.md) |
+| Pre/post-response scripts | **not implemented** | see [ROADMAP.md](https://github.com/higayes/apiforge/blob/main/ROADMAP.md) |
 
 Test counts and coverage are printed by `pnpm test` and `pnpm test:coverage`.
 
@@ -413,12 +413,12 @@ pnpm verify         # format, lint, typecheck, build, test, end-to-end smoke
 pnpm examples       # run every feature against the bundled demo API
 ```
 
-See [CONTRIBUTING.md](https://github.com/apiforge/apiforge/blob/main/CONTRIBUTING.md) for the architecture overview and the
+See [CONTRIBUTING.md](https://github.com/higayes/apiforge/blob/main/CONTRIBUTING.md) for the architecture overview and the
 review checklist.
 
 ## Security
 
-Please read [SECURITY.md](https://github.com/apiforge/apiforge/blob/main/SECURITY.md) before reporting a vulnerability.
+Please read [SECURITY.md](https://github.com/higayes/apiforge/blob/main/SECURITY.md) before reporting a vulnerability.
 APIFORGE is a testing tool: **never point it at systems you do not own or have
 written permission to test**, and never commit secrets — use environment
 variables or your CI secret store.

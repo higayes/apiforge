@@ -58,7 +58,7 @@ ${''}Examples:
   $ apiforge report reports/latest.json -f html
 
 Exit codes: ${EXIT_CODE_DOCS.map((entry) => `${entry.code}=${entry.meaning.toLowerCase()}`).join(', ')}
-Documentation: https://github.com/apiforge/apiforge
+Documentation: https://github.com/higayes/apiforge
 `,
     );
 

@@ -17,7 +17,7 @@ export const STARTER_FILES: Array<{ path: string; content: string }> = [
   {
     path: 'apiforge.yaml',
     content: `# APIFORGE project configuration
-# Docs: https://github.com/apiforge/apiforge/blob/main/docs/configuration.md
+# Docs: https://github.com/higayes/apiforge/blob/main/docs/configuration.md
 name: My API
 defaultEnvironment: local
 
