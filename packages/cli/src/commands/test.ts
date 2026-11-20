@@ -5,6 +5,7 @@ import {
   buildTestReport,
   closeHttpResources,
   formatDuration,
+  mapWithConcurrency,
   renderTestReport,
   runSuite,
   type EnvironmentDefinition,
@@ -23,6 +24,7 @@ import { createUiFromCommand } from '../lib/context.js';
 import { openProject } from '../lib/project.js';
 import {
   parseHeaders,
+  parseIntInRange,
   parseKeyValuePairs,
   parseTimeout,
   resolveEnvironment,
@@ -32,6 +34,8 @@ import { installCancellation } from '../signals.js';
 import { formatCliError } from '../errors.js';
 import { ConfigError } from '@apiforge/engine';
 import { TOOL_INFO } from '../lib/version.js';
+
+const MAX_JOBS = 64;
 
 interface TestCommandOptions {
   env?: string;
@@ -49,6 +53,7 @@ interface TestCommandOptions {
   quiet?: boolean;
   verbose?: boolean;
   bail?: boolean;
+  jobs?: string;
   insecure?: boolean;
   title?: string;
 }
@@ -70,6 +75,7 @@ export function registerTestCommand(program: Command): void {
     .option('--json', 'print the full report as JSON to stdout')
     .option('--title <text>', 'report title')
     .option('--bail', 'stop after the first failing test')
+    .option('--jobs <n>', 'run up to n suite files concurrently (default: 1, sequential)')
     .option('--insecure', 'do not verify TLS certificates (development only)')
     .option('-v, --verbose', 'show every test and assertion')
     .option('-q, --quiet', 'only print the final result')
@@ -86,6 +92,7 @@ export function registerTestCommand(program: Command): void {
         const secrets = parseKeyValuePairs(options.secret, '--secret');
         const headers = parseHeaders(options.header);
         const timeoutMs = parseTimeout(options.timeout);
+        const jobs = parseIntInRange(options.jobs, '--jobs', 1, MAX_JOBS) ?? 1;
         const cancellation = installCancellation({
           onFirstInterrupt: () => {
             ui.stopSpinner();
@@ -135,16 +142,18 @@ export function registerTestCommand(program: Command): void {
             ),
           );
 
-          const suiteRuns: SuiteRun[] = [];
           const started = performance.now();
           let bailed = false;
+          let finishedTests = 0;
 
-          for (const loaded of project.suites) {
-            ui.line('');
-            ui.startSpinner(`Running ${loaded.suite.name}…`);
-            let finished = 0;
-
-            const run = await runSuite(
+          // Every call builds its own RunnerOptions, and `runSuite` keeps captures,
+          // cookies and secrets in local state, so concurrent suites share nothing
+          // except the HTTP connection pool.
+          const execute = (
+            loaded: (typeof project.suites)[number],
+            onTestFinished: (result: TestCaseResult) => void,
+          ): Promise<SuiteRun> =>
+            runSuite(
               loaded.suite,
               {
                 ...(mergedEnvironment ? { environment: mergedEnvironment } : {}),
@@ -159,26 +168,20 @@ export function registerTestCommand(program: Command): void {
                 suiteDir: dirname(loaded.file),
                 shouldStop: (result: TestCaseResult) =>
                   options.bail === true &&
-                  (result.status === 'failed' || result.status === 'error'),
-                onTestFinished: (result: TestCaseResult) => {
-                  finished += 1;
-                  const icon =
-                    result.status === 'passed'
-                      ? ui.palette.green('✔')
-                      : result.status === 'skipped'
-                        ? ui.palette.yellow('○')
-                        : ui.palette.red('✖');
-                  ui.updateSpinner(
-                    `${loaded.suite.name} — ${finished} finished · ${icon} ${result.name}`,
-                  );
-                },
+                  (bailed || result.status === 'failed' || result.status === 'error'),
+                onTestFinished,
               },
               loaded.relativeFile,
             );
 
-            ui.stopSpinner();
-            suiteRuns.push(run);
+          const iconFor = (result: TestCaseResult): string =>
+            result.status === 'passed'
+              ? ui.palette.green('✔')
+              : result.status === 'skipped'
+                ? ui.palette.yellow('○')
+                : ui.palette.red('✖');
 
+          const printSummary = (run: SuiteRun): void => {
             const totals = run.totals;
             const summary = `${run.suite}: ${totals.passed}/${totals.total} passed${
               totals.failed ? `, ${totals.failed} failed` : ''
@@ -187,10 +190,60 @@ export function registerTestCommand(program: Command): void {
             } (${formatDuration(run.durationMs)})`;
             if (run.passed) ui.success(summary);
             else ui.fail(summary);
+          };
 
-            if (options.bail === true && !run.passed) {
-              bailed = true;
-              break;
+          const suiteRuns: SuiteRun[] = [];
+
+          if (jobs === 1) {
+            // Reference implementation: one suite at a time, in discovery order.
+            for (const loaded of project.suites) {
+              ui.line('');
+              ui.startSpinner(`Running ${loaded.suite.name}…`);
+              let finished = 0;
+
+              const run = await execute(loaded, (result) => {
+                finished += 1;
+                ui.updateSpinner(
+                  `${loaded.suite.name} — ${finished} finished · ${iconFor(result)} ${result.name}`,
+                );
+              });
+
+              ui.stopSpinner();
+              suiteRuns.push(run);
+              printSummary(run);
+
+              if (options.bail === true && !run.passed) {
+                bailed = true;
+                break;
+              }
+            }
+          } else {
+            // Concurrent: at most `jobs` suite files in flight. Runs are collected
+            // by suite index and printed afterwards, so neither the summaries nor
+            // the report depend on which suite happens to finish first.
+            const total = project.suites.length;
+            ui.line('');
+            ui.startSpinner(`Running ${total} suite(s), up to ${jobs} at a time…`);
+            const runs = await mapWithConcurrency(
+              project.suites,
+              jobs,
+              async (loaded) => {
+                const run = await execute(loaded, (result) => {
+                  finishedTests += 1;
+                  ui.updateSpinner(
+                    `${finishedTests} test(s) finished · ${iconFor(result)} ${loaded.suite.name}: ${result.name}`,
+                  );
+                });
+                if (options.bail === true && !run.passed) bailed = true;
+                return run;
+              },
+              // With --bail no new suite file is started once one has failed.
+              () => !bailed,
+            ).finally(() => ui.stopSpinner());
+            for (const run of runs) {
+              if (run === undefined) continue;
+              suiteRuns.push(run);
+              printSummary(run);
             }
           }
 

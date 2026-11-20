@@ -9,6 +9,15 @@ are always listed under **Changed**.
 
 ## [Unreleased]
 
+### Added
+
+- `apiforge test --jobs <n>` runs up to `n` suite files concurrently (default `1`,
+  sequential). Reports and summaries keep discovery order regardless of which
+  suite finishes first, each suite keeps its own captures, cookies and secrets,
+  and with `--bail` no new suite file is started after a failure. Only the
+  `test` command is affected: `performance` and `security` keep their own
+  bounded concurrency and are never multiplied by `--jobs`.
+
 ### Fixed
 
 - **The installed CLI did nothing.** The bundle only started when its own

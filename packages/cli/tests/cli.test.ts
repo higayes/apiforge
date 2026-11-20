@@ -210,6 +210,119 @@ tests:
     expect(payload.totals.total).toBe(2);
   });
 
+  describe('--jobs', () => {
+    interface JobsPayload {
+      passed: boolean;
+      totals: { total: number; passed: number; failed: number };
+      suites: Array<{
+        suite: string;
+        passed: boolean;
+        results: Array<{ name: string; status: string }>;
+      }>;
+    }
+
+    // Each suite captures its own value, waits on a slow request so the other
+    // suites interleave with it, then reads the capture back through /echo.
+    const isolatedSuite = (name: string, baseUrl: string, slow: boolean): string => `name: ${name}
+baseUrl: ${baseUrl}
+tests:
+  - name: capture
+    id: cap
+    path: /echo
+    headers: { xwho: ${name} }
+    capture: { who: headers.xwho }
+  - name: wait
+    path: ${slow ? '/slow' : '/json'}
+  - name: read back
+    path: /echo
+    headers: { xwho2: '{{steps.cap.who}}' }
+    expect:
+      jsonPath:
+        headers.xwho2: ${name}
+`;
+
+    it('keeps suite order stable when suites finish out of order', async () => {
+      // The first suite is the slowest, so it finishes last when run concurrently.
+      const dir = await project({
+        'a.suite.yaml': isolatedSuite('alpha', server.url, true),
+        'b.suite.yaml': isolatedSuite('bravo', server.url, false),
+        'c.suite.yaml': isolatedSuite('charlie', server.url, false),
+      });
+      const sequential = await runCli(['test', '--json', '--jobs', '1'], { cwd: dir });
+      const parallel = await runCli(['test', '--json', '--jobs', '3'], { cwd: dir });
+      expect(parallel.code).toBe(0);
+      const order = (stdout: string): string[] =>
+        (JSON.parse(stdout) as JobsPayload).suites.map((entry) => entry.suite);
+      expect(order(parallel.stdout)).toEqual(['alpha', 'bravo', 'charlie']);
+      expect(order(parallel.stdout)).toEqual(order(sequential.stdout));
+    });
+
+    it('does not leak captures between suites running concurrently', async () => {
+      const dir = await project({
+        'a.suite.yaml': isolatedSuite('alpha', server.url, true),
+        'b.suite.yaml': isolatedSuite('bravo', server.url, true),
+        'c.suite.yaml': isolatedSuite('charlie', server.url, false),
+      });
+      const result = await runCli(['test', '--json', '--jobs', '3'], { cwd: dir });
+      const payload = JSON.parse(result.stdout) as JobsPayload;
+      expect(result.code).toBe(0);
+      expect(payload.totals.total).toBe(9);
+      expect(payload.totals.passed).toBe(9);
+    });
+
+    it('lets a failing suite leave the others untouched', async () => {
+      const dir = await project({
+        'a.suite.yaml': isolatedSuite('alpha', server.url, true),
+        'b.suite.yaml': suite(server.url),
+        'c.suite.yaml': isolatedSuite('charlie', server.url, false),
+      });
+      const result = await runCli(['test', '--json', '--jobs', '3'], { cwd: dir });
+      const payload = JSON.parse(result.stdout) as JobsPayload;
+      expect(result.code).toBe(1);
+      expect(payload.suites.map((entry) => [entry.suite, entry.passed])).toEqual([
+        ['alpha', true],
+        ['Smoke', false],
+        ['charlie', true],
+      ]);
+    });
+
+    it('produces the same results as the sequential run', async () => {
+      const dir = await project({
+        'a.suite.yaml': isolatedSuite('alpha', server.url, true),
+        'b.suite.yaml': suite(server.url),
+      });
+      const summarise = (stdout: string): unknown =>
+        (JSON.parse(stdout) as JobsPayload).suites.map((entry) => ({
+          suite: entry.suite,
+          results: entry.results.map((r) => [r.name, r.status]),
+        }));
+      const sequential = await runCli(['test', '--json'], { cwd: dir });
+      const parallel = await runCli(['test', '--json', '--jobs', '2'], { cwd: dir });
+      expect(summarise(parallel.stdout)).toEqual(summarise(sequential.stdout));
+    });
+
+    it('stops starting new suite files after a failure with --bail', async () => {
+      const dir = await project({
+        'a.suite.yaml': suite(server.url),
+        'b.suite.yaml': isolatedSuite('bravo', server.url, false),
+        'c.suite.yaml': isolatedSuite('charlie', server.url, false),
+      });
+      const result = await runCli(['test', '--json', '--bail', '--jobs', '1'], { cwd: dir });
+      const payload = JSON.parse(result.stdout) as JobsPayload;
+      expect(result.code).toBe(1);
+      expect(payload.suites.map((entry) => entry.suite)).toEqual(['Smoke']);
+    });
+
+    for (const value of ['0', '-1', '1.5', 'abc', '65']) {
+      it(`rejects --jobs ${value} as a usage error`, async () => {
+        const dir = await project({ 'a.suite.yaml': suite(server.url) });
+        const result = await runCli(['test', '--jobs', value], { cwd: dir });
+        expect(result.code).toBe(2);
+        expect(result.stderr).toContain(`Invalid --jobs value "${value}"`);
+      });
+    }
+  });
+
   it('uses environments and reports the environment name', async () => {
     const dir = await project({
       'apiforge.yaml': 'name: Env project\n',

@@ -225,6 +225,7 @@ export {
 } from './util/redaction.js';
 export { computeLatencyStats, percentile, round } from './util/stats.js';
 export { unifiedDiff, diffJson, formatValue } from './util/diff.js';
+export { mapWithConcurrency } from './util/concurrency.js';
 export { createLogger, silentLogger } from './util/logger.js';
 export type { Logger, LogLevel } from './util/logger.js';
 export {
