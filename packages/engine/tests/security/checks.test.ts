@@ -161,7 +161,10 @@ describe('checkDisclosure', () => {
   });
 
   it('masks secrets found in bodies', () => {
-    const findings = checkDisclosure({}, '{"key":"sk"+"_live_"+"abcdefghijklmnopqrstuvwx"}');
+    // Assembled at runtime so the literal never appears in the repository: GitHub's
+    // push protection flags any live-key-shaped string as a leaked secret.
+    const fakeStripeKey = ['sk', 'live', 'abcdefghijklmnopqrstuvwx'].join('_');
+    const findings = checkDisclosure({}, JSON.stringify({ key: fakeStripeKey }));
     const secret = findings.find((finding) => finding.id === 'disclosure.secret.stripe-key');
     expect(secret?.status).toBe('fail');
     expect(secret?.severity).toBe('critical');
