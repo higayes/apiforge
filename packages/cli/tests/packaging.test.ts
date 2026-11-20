@@ -25,6 +25,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const exec = promisify(execFile);
+
+// npm ships as a shell script on POSIX and as npm.cmd on Windows; spawning the
+// bare name fails with ENOENT there.
+const NPM = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distFile = join(cliDir, 'dist', 'cli.js');
 
@@ -146,7 +150,7 @@ describe('packaging', () => {
 
   it('packs only the intended files', async () => {
     const pkg = await packageJson();
-    const { stdout } = await exec('npm', ['pack', '--dry-run', '--json'], {
+    const { stdout } = await exec(NPM, ['pack', '--dry-run', '--json'], {
       cwd: cliDir,
       env: { ...process.env, npm_config_loglevel: 'error' },
     });
@@ -172,7 +176,7 @@ describe('packaging', () => {
     async () => {
       const workDir = await mkdtemp(join(tmpdir(), 'apiforge-pack-'));
       try {
-        const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', workDir], {
+        const { stdout } = await exec(NPM, ['pack', '--json', '--pack-destination', workDir], {
           cwd: cliDir,
           env: { ...process.env, npm_config_loglevel: 'error' },
         });
@@ -180,8 +184,8 @@ describe('packaging', () => {
         const tarball = join(workDir, entry?.filename as string);
 
         const consumer = join(workDir, 'consumer');
-        await exec('npm', ['init', '-y'], { cwd: workDir });
-        await exec('npm', ['install', tarball, '--no-audit', '--no-fund'], {
+        await exec(NPM, ['init', '-y'], { cwd: workDir });
+        await exec(NPM, ['install', tarball, '--no-audit', '--no-fund'], {
           cwd: workDir,
           env: { ...process.env, npm_config_loglevel: 'error' },
         });

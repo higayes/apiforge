@@ -12,7 +12,7 @@
  * project is created so the repository stays clean and reruns are independent.
  */
 import { spawn } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -21,6 +21,21 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cliPath = join(repoRoot, 'packages/cli/dist/cli.js');
 const demoServerPath = join(repoRoot, 'scripts/demo-server.mjs');
+
+// The port the example project documents. Every spec that hardcodes it is
+// rewritten to the port this run actually listens on.
+const DOCUMENTED_URL = 'http://127.0.0.1:4010';
+const TEXT_FILE = /\.(?:ya?ml|json|md|ts|js|mjs)$/;
+
+async function collectFiles(dir) {
+  const found = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...(await collectFiles(path)));
+    else if (entry.isFile()) found.push(path);
+  }
+  return found;
+}
 const examplesDir = join(repoRoot, 'examples/demo-api');
 
 const green = (t) => (process.stdout.isTTY ? `\u001b[32m${t}\u001b[39m` : t);
@@ -103,17 +118,14 @@ async function main() {
     const projectDir = join(workDir, 'project');
 
     // Point every specification at the port we actually got.
-    for (const file of [
-      'environments/local.yaml',
-      'environments/ci.yaml',
-      'perf.yaml',
-      'security.yaml',
-      'contract.yaml',
-    ]) {
-      const path = join(projectDir, file);
+    // Walk the whole project rather than a hand-maintained file list: suites that
+    // hardcode the documented port (imported/*.yaml, openapi/*.yaml, ...) would
+    // otherwise keep pointing at a port this run does not own and fail.
+    for (const path of await collectFiles(projectDir)) {
+      if (!TEXT_FILE.test(path)) continue;
       const content = await readFile(path, 'utf8').catch(() => undefined);
-      if (content === undefined) continue;
-      await writeFile(path, content.replaceAll('http://127.0.0.1:4010', demo.url), 'utf8');
+      if (content === undefined || !content.includes(DOCUMENTED_URL)) continue;
+      await writeFile(path, content.replaceAll(DOCUMENTED_URL, demo.url), 'utf8');
     }
 
     process.stdout.write(`\n${bold('APIFORGE examples')}\n`);
@@ -193,6 +205,9 @@ async function main() {
     }
 
     process.stdout.write(`\n${bold('6. Reports')}\n`);
+    // performance/security/contract each overwrite reports/latest.json with their
+    // own kind, so re-run the suite to leave a test report for `report` to read.
+    await run(['test', '--reporter', 'json'], { cwd: projectDir });
     const report = await run(['report', 'reports/latest.json', '-f', 'html,terminal'], {
       cwd: projectDir,
     });

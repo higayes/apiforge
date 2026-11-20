@@ -29,7 +29,7 @@
     "test": "pnpm build && vitest run",
     "test:watch": "pnpm build && vitest",
     "test:coverage": "pnpm build && vitest run --coverage",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && node scripts/smoke-test.mjs",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && node scripts/smoke-test.mjs && node scripts/run-examples.mjs",
     "examples": "pnpm build && node scripts/run-examples.mjs",
     "pack:check": "pnpm --filter ./packages/cli exec npm pack --dry-run",
     "smoke": "pnpm build && node scripts/smoke-test.mjs"
