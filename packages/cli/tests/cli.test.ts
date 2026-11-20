@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { makeTempProject, runCli } from './helpers/cli.js';
+import { CLI_ENTRY, makeTempProject, runCli } from './helpers/cli.js';
 import { startMockServer, type MockServer } from '../../engine/tests/helpers/mock-server.js';
 
 let server: MockServer;
@@ -209,6 +210,47 @@ tests:
     expect(result.code).toBe(1);
     expect(payload.totals.total).toBe(2);
   });
+
+  it('rejects --watch together with --json', async () => {
+    const dir = await project({ 'w.suite.yaml': suite(server.url) });
+    const result = await runCli(['test', 'w.suite.yaml', '--watch', '--json'], { cwd: dir });
+    expect(result.code).toBe(2);
+    expect(result.stdout).toContain('--watch cannot be combined with --json');
+  });
+
+  // Real fs events, real SIGINT. POSIX only: Windows cannot deliver SIGINT to a child.
+  it.skipIf(process.platform === 'win32')(
+    're-runs on a suite change and exits 130 on Ctrl+C in --watch mode',
+    async () => {
+      const dir = await project({ 'w.suite.yaml': suite(server.url) });
+      const child = spawn(process.execPath, [CLI_ENTRY, 'test', 'w.suite.yaml', '--watch'], {
+        cwd: dir,
+        env: { ...process.env, NO_COLOR: '1' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let output = '';
+      child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
+      const waitFor = async (text: string, count: number): Promise<void> => {
+        const deadline = Date.now() + 20_000;
+        while (output.split(text).length - 1 < count) {
+          if (Date.now() > deadline) throw new Error(`Timed out waiting for "${text}":\n${output}`);
+          await new Promise((done) => setTimeout(done, 50));
+        }
+      };
+      const exited = new Promise<number | null>((done) => child.on('close', done));
+
+      try {
+        await waitFor('Watching for changes', 1);
+        await writeFile(join(dir, 'w.suite.yaml'), suite(server.url) + '\n# edited\n', 'utf8');
+        await waitFor('Watching for changes', 2);
+        expect(output).toContain('Re-running: w.suite.yaml');
+        child.kill('SIGINT');
+        expect(await exited).toBe(130);
+      } finally {
+        child.kill('SIGKILL');
+      }
+    },
+  );
 
   it('uses environments and reports the environment name', async () => {
     const dir = await project({

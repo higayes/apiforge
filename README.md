@@ -101,6 +101,7 @@ apiforge test suites/api.suite.yaml             # one file
 apiforge test suites/ --env staging             # a directory against an environment
 apiforge test --filter users --tag smoke        # narrow by name/id or tag
 apiforge test --bail                            # stop at the first failure
+apiforge test --watch                           # re-run when a suite, environment or data file changes
 apiforge test --reporter json,html,junit        # write reports/
 apiforge test --json | jq '.totals'             # machine-readable, stdout is pure JSON
 ```
@@ -117,6 +118,7 @@ apiforge test --json | jq '.totals'             # machine-readable, stdout is pu
 | `--reporter <list>`     | `terminal,json,html,junit`                        |
 | `-o, --out <dir>`       | report directory (default `reports/`)             |
 | `--bail`                | stop after the first failing test                 |
+| `-w, --watch`           | re-run on suite, environment or data file changes |
 | `--insecure`            | skip TLS verification (development only)          |
 
 ### `apiforge run [options] <url>`
