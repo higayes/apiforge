@@ -122,7 +122,7 @@ describe('compileUserPattern', () => {
   });
 
   it('rejects a nested-quantifier pattern with an actionable reason', () => {
-    const result = compileUserPattern('(a+)+$');
+    const result = compileUserPattern(EXPLOSIVE);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toMatch(/nests a quantifier/i);
@@ -132,7 +132,7 @@ describe('compileUserPattern', () => {
 
   it('rejects the pattern that used to hang for two minutes', () => {
     // Measured before the guard: 116 s on a 42-character subject.
-    const result = compileUserPattern('(a+)+$');
+    const result = compileUserPattern(EXPLOSIVE);
     expect(result.ok).toBe(false);
   });
 });
@@ -144,7 +144,7 @@ describe('testUserPattern', () => {
   });
 
   it('never evaluates a rejected pattern', () => {
-    const outcome = testUserPattern('(a+)+$', 'a'.repeat(60) + '!');
+    const outcome = testUserPattern(EXPLOSIVE, 'a'.repeat(60) + '!');
     expect(outcome.passed).toBe(false);
     expect(outcome.reason).toMatch(/nests a quantifier/i);
   });
@@ -162,7 +162,7 @@ describe('testUserPattern', () => {
   it('returns decisively and fast for a rejected pattern', () => {
     // The point of the guard: rejection is O(pattern length), not exponential.
     const start = process.hrtime.bigint();
-    for (let i = 0; i < 1_000; i += 1) testUserPattern('(a+)+$', 'a'.repeat(80) + '!');
+    for (let i = 0; i < 1_000; i += 1) testUserPattern(EXPLOSIVE, 'a'.repeat(80) + '!');
     const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
     expect(elapsed).toBeLessThan(1_000);
   });
