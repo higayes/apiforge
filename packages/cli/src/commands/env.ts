@@ -178,15 +178,22 @@ export function registerEnvCommand(program: CommandType): void {
   // `apiforge env` (no subcommand) behaves like `apiforge env list`. Options are
   // tolerated (and forwarded) via pass-through so they are never registered on
   // the namespace, which would cancel child flags.
+  //
+  // `parseAsync` — not `parse` — is required here. The delegated `list` action is
+  // async, so a synchronous `parse()` returns before the action settles and the
+  // resulting rejection escapes the parent's try/catch in `main()`. Node then
+  // reports an unhandled rejection as a raw stack trace *and* exits 1, instead of
+  // the documented exit 3 with a clean `✖ …` message. Awaiting the promise keeps
+  // the error inside `main()`'s catch, which is what renders it.
   env
     .allowUnknownOption(true)
     .allowExcessArguments(true)
-    .action(() => {
+    .action(async () => {
       const known = new Set(['--json', '--no-color', '-q', '--quiet']);
       const forwarded = process.argv.filter((argument) => known.has(argument));
-      env.commands
+      await env.commands
         .find((command) => command.name() === 'list')
-        ?.parse(['node', 'apiforge-env-list', ...forwarded], {
+        ?.parseAsync(['node', 'apiforge-env-list', ...forwarded], {
           from: 'node',
         });
     });

@@ -211,7 +211,7 @@ documents, specifications) are skipped rather than reported as errors.
 ```bash
 apiforge env                      # list environments
 apiforge env show staging         # details, secrets masked
-apiforge env validate             # verify every environment file parses
+apiforge env validate environments/local.yaml   # check one environment file
 ```
 
 ## Suite format
