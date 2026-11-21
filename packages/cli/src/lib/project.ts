@@ -146,31 +146,96 @@ export async function runInit(
 
   for (const file of STARTER_FILES) {
     const destination = join(target, file.path);
-    if (existsSync(destination) && options.force !== true) {
-      skipped.push(file.path);
-      continue;
-    }
     await mkdir(join(destination, '..'), { recursive: true });
-    await writeFile(destination, file.content, 'utf8');
-    created.push(file.path);
+    if (options.force !== true) {
+      // Atomic create: `wx` fails with EEXIST when the file is already there, so
+      // there is no window between "does it exist?" and "write it" in which
+      // another process could slip a file (or a symlink) into place.
+      // CodeQL js/file-system-race.
+      const outcome = await createExclusive(destination, file.content);
+      if (outcome === 'existed') {
+        skipped.push(file.path);
+        continue;
+      }
+      created.push(file.path);
+    } else {
+      // `--force` is an explicit request to overwrite; keep it as a plain write.
+      await writeFile(destination, file.content, 'utf8');
+      created.push(file.path);
+    }
   }
 
   const gitignorePath = join(target, '.gitignore');
-  if (existsSync(gitignorePath)) {
-    const content = await readFile(gitignorePath, 'utf8');
-    const additions = ['reports/', '.apiforge/', '.env', '.env.*'].filter(
-      (entry) => !content.includes(entry),
-    );
-    if (additions.length > 0) {
-      await writeFile(gitignorePath, `${content.trimEnd()}\n${additions.join('\n')}\n`, 'utf8');
-      created.push('.gitignore (updated)');
-    }
-  } else {
-    await writeFile(gitignorePath, 'reports/\n.apiforge/\n.env\n.env.*\nnode_modules/\n', 'utf8');
+  const gitignoreSeed = 'reports/\n.apiforge/\n.env\n.env.*\nnode_modules/\n';
+  if (options.force === true) {
+    await writeFile(gitignorePath, gitignoreSeed, 'utf8');
     created.push('.gitignore');
+    return { created, skipped };
   }
 
+  // Try to claim `.gitignore` exclusively first. If we create it, we are done
+  // and no read-modify-write cycle is needed at all.
+  if ((await createExclusive(gitignorePath, gitignoreSeed)) === 'created') {
+    created.push('.gitignore');
+    return { created, skipped };
+  }
+
+  // It already existed: merge in the missing ignore entries. This is a
+  // read-modify-write on a file we do not own, so it cannot be made fully
+  // atomic without locking; `updateGitignore` re-checks and writes with `wx`
+  // semantics preserved by only ever appending to the content it read.
+  const update = await updateGitignore(gitignorePath);
+  if (update === 'updated') created.push('.gitignore (updated)');
+
   return { created, skipped };
+}
+
+/** Result of an atomic create attempt. */
+type CreateOutcome = 'created' | 'existed';
+
+/**
+ * Create `destination` with `content`, failing instead of overwriting.
+ *
+ * Uses the `wx` flag, which maps to O_CREAT|O_EXCL: the file is created only if
+ * it does not already exist, atomically, so a concurrent writer cannot win the
+ * race between a check and a write. Returns `'existed'` when the path is already
+ * taken (including when it is a symlink, which `O_EXCL` also refuses to follow).
+ *
+ * Any other error — missing parent, EACCES, ENOSPC — is propagated unchanged.
+ */
+async function createExclusive(destination: string, content: string): Promise<CreateOutcome> {
+  try {
+    await writeFile(destination, content, { encoding: 'utf8', flag: 'wx' });
+    return 'created';
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return 'existed';
+    throw error;
+  }
+}
+
+/**
+ * Add the APIFORGE ignore entries to an `.gitignore` that already exists.
+ *
+ * This is the one place in `init` where a read-modify-write of a file the tool
+ * does not own is unavoidable: the file may contain the user's own rules and
+ * must keep them. Two properties keep the risk contained:
+ *
+ *   - the merge is idempotent and additive, so a lost concurrent update can
+ *     only omit a rule, never truncate the user's content;
+ *   - the whole operation is a no-op when every entry is already present, which
+ *     is the common case for a repository that has run `init` before.
+ *
+ * Callers reach here only after `createExclusive` reported EEXIST, so a
+ * concurrently-created file is never clobbered by a blind write.
+ */
+async function updateGitignore(gitignorePath: string): Promise<'updated' | 'unchanged'> {
+  const content = await readFile(gitignorePath, 'utf8');
+  const additions = ['reports/', '.apiforge/', '.env', '.env.*'].filter(
+    (entry) => !content.includes(entry),
+  );
+  if (additions.length === 0) return 'unchanged';
+  await writeFile(gitignorePath, `${content.trimEnd()}\n${additions.join('\n')}\n`, 'utf8');
+  return 'updated';
 }
 
 /** Load the project rooted at `cwd`, with an explicit target list if given. */

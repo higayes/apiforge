@@ -4,6 +4,7 @@
 import type { AssertionResult, RequestSummary, ResponseSummary } from '../types.js';
 import type { ExpectDefinition, HeaderCheck } from '../config/schema.js';
 import { formatValue } from '../util/diff.js';
+import { testUserPattern } from '../util/safe-regex.js';
 import { validateJsonSchema } from './json-schema.js';
 import { evaluateJsonPathChecks } from './value-check.js';
 
@@ -157,14 +158,18 @@ function evaluateHeaderCheck(
           : `expected header "${name}" not to contain ${formatValue(expected)}`;
         break;
       case 'matches': {
-        try {
-          passed = new RegExp(String(expected), 'u').test(actual);
-          message = passed
-            ? undefined
-            : `expected header "${name}" to match /${String(expected)}/, got ${formatValue(actual)}`;
-        } catch (error) {
-          message = `invalid regular expression: ${(error as Error).message}`;
+        // User-authored pattern: compiled through the size-bounded,
+        // nesting-aware helper so a pathological regex cannot hang the run.
+        const outcome = testUserPattern(String(expected), actual);
+        if (outcome.reason !== undefined) {
+          message = outcome.reason;
+          passed = false;
+          break;
         }
+        passed = outcome.passed;
+        message = passed
+          ? undefined
+          : `expected header "${name}" to match /${String(expected)}/, got ${formatValue(actual)}`;
         break;
       }
       case 'in':
@@ -268,11 +273,15 @@ function bodyAssertions(
   if (body.matches !== undefined) {
     let passed = false;
     let message: string | undefined;
-    try {
-      passed = new RegExp(body.matches, 'u').test(text);
-      message = passed ? undefined : `body does not match /${body.matches}/`;
-    } catch (error) {
-      message = `invalid regular expression: ${(error as Error).message}`;
+    // User-authored pattern: bounded and nesting-checked, see safe-regex.ts.
+    const outcome = testUserPattern(body.matches, text);
+    if (outcome.reason !== undefined) {
+      message = outcome.reason;
+    } else {
+      passed = outcome.passed;
+      message = passed
+        ? undefined
+        : `body does not match /${body.matches}/${outcome.truncated ? ' (input truncated before matching)' : ''}`;
     }
     results.push({
       target: 'body',
