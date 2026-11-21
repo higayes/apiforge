@@ -234,7 +234,11 @@ describe('packaging', () => {
           ['pack', '--json', '--pack-destination', workDir],
           npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
         );
-        const [entry] = JSON.parse(stdout) as Array<{ filename: string }>;
+        // `prepack`/`postpack` log to stdout, so `npm pack --json` is no longer
+        // pure JSON. Keep only the payload.
+        const jsonStart = stdout.search(/^\s*\[/m);
+        expect(jsonStart, `no JSON found in npm pack output:\n${stdout}`).toBeGreaterThanOrEqual(0);
+        const [entry] = JSON.parse(stdout.slice(jsonStart)) as Array<{ filename: string }>;
         const tarball = join(workDir, entry?.filename as string);
 
         const consumer = join(workDir, 'consumer');
