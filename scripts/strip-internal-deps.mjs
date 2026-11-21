@@ -27,12 +27,21 @@
  * directory, so the rewritten manifest is what lands in the tarball. Nothing is
  * published from CI's throwaway checkout, so the rewrite is harmless there.
  *
- * LOCAL SAFETY
+ * LOCAL SAFETY — the backup is permanent until postpack removes it
  * Rewriting the working copy is unavoidable — npm packs the directory *after*
- * `prepack` returns, so an in-memory edit would never reach the tarball. To keep
- * a local `npm pack` from leaving the repo dirty, the original manifest is
- * restored as soon as the tarball has been written, via a chained
- * `postpack` (see package.json).
+ * `prepack` returns, so an in-memory edit would never reach the tarball. Two
+ * rules keep a failed pack from destroying the developer's manifest:
+ *
+ *   1. An existing backup is never overwritten. The backup is the *original*
+ *      manifest; if a previous pack aborted after `prepack`, the file on disk is
+ *      already stripped and is NOT a valid source for a new backup.
+ *   2. Stripping is idempotent, so re-running it on an already-stripped manifest
+ *      is harmless and reports that there was nothing to remove.
+ *
+ * Without rule 1 a failed pack leaked permanently: pack #1 wrote the backup and
+ * aborted; pack #2 saw an already-stripped manifest, overwrote the only copy of
+ * the original, and `postpack` then "restored" a stripped manifest — silently
+ * deleting `workspace:*` from the committed file.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,8 +50,22 @@ const manifestPath = fileURLToPath(new URL('../packages/cli/package.json', impor
 const backupPath = `${manifestPath}.prepack-backup`;
 const INTERNAL = /^@apiforge\//;
 
-const original = readFileSync(manifestPath, 'utf8');
-const pkg = JSON.parse(original);
+// Rule 1: keep the earliest backup. It is the only pristine copy.
+//
+// `wx` fails with EEXIST when the file is already there, which both expresses
+// "create only if absent" and does it atomically. An existsSync-then-writeFileSync
+// pair races: CodeQL flags it as js/file-system-race, and the race is real even
+// here — two concurrent packs in the same checkout would both see "absent" and
+// the second would overwrite the pristine copy with an already-stripped one,
+// which is exactly the data loss this rule exists to prevent.
+try {
+  writeFileSync(backupPath, readFileSync(manifestPath, 'utf8'), { flag: 'wx' });
+} catch (error) {
+  if (error.code !== 'EEXIST') throw error;
+  // A backup already exists — keep it.
+}
+
+const pkg = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const removed = [];
 
 for (const field of ['devDependencies', 'optionalDependencies', 'peerDependencies']) {
@@ -57,13 +80,10 @@ for (const field of ['devDependencies', 'optionalDependencies', 'peerDependencie
   if (Object.keys(deps).length === 0) delete pkg[field];
 }
 
-// Always leave a backup so `postpack` can restore the developer's working copy,
-// even when there was nothing to strip.
-writeFileSync(backupPath, original);
-
+// Rule 2: idempotent. Re-running on a stripped manifest is a no-op.
 if (removed.length > 0) {
   writeFileSync(manifestPath, `${JSON.stringify(pkg, null, 2)}\n`);
   console.log(`strip-internal-deps: removed ${removed.join(', ')} from the published manifest`);
 } else {
-  console.log('strip-internal-deps: nothing to remove');
+  console.log('strip-internal-deps: nothing to remove (manifest already stripped)');
 }
