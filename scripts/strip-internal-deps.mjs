@@ -43,7 +43,7 @@
  * the original, and `postpack` then "restored" a stripped manifest — silently
  * deleting `workspace:*` from the committed file.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const manifestPath = fileURLToPath(new URL('../packages/cli/package.json', import.meta.url));
@@ -51,8 +51,18 @@ const backupPath = `${manifestPath}.prepack-backup`;
 const INTERNAL = /^@apiforge\//;
 
 // Rule 1: keep the earliest backup. It is the only pristine copy.
-if (!existsSync(backupPath)) {
-  writeFileSync(backupPath, readFileSync(manifestPath, 'utf8'));
+//
+// `wx` fails with EEXIST when the file is already there, which both expresses
+// "create only if absent" and does it atomically. An existsSync-then-writeFileSync
+// pair races: CodeQL flags it as js/file-system-race, and the race is real even
+// here — two concurrent packs in the same checkout would both see "absent" and
+// the second would overwrite the pristine copy with an already-stripped one,
+// which is exactly the data loss this rule exists to prevent.
+try {
+  writeFileSync(backupPath, readFileSync(manifestPath, 'utf8'), { flag: 'wx' });
+} catch (error) {
+  if (error.code !== 'EEXIST') throw error;
+  // A backup already exists — keep it.
 }
 
 const pkg = JSON.parse(readFileSync(manifestPath, 'utf8'));
