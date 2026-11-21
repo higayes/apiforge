@@ -134,16 +134,51 @@ export function hasNestedQuantifier(pattern: string): boolean {
 
   const current = (): GroupFrame | undefined => stack[stack.length - 1];
 
-  /** Parse a `{n,m}` quantifier at `index`. */
+  /**
+   * Parse a `{n,m}` quantifier at `index`.
+   *
+   * Deliberately hand-written instead of `/^\{(\d*)(,?)(\d*)\}/`: that regex
+   * is quadratic, because `(\d*)` and `(,?)` can split a long digit run in
+   * many ways before failing — 7 s on a 100 k-digit run (CodeQL
+   * js/polynomial-redos). A quantifier is short by construction, so scanning a
+   * bounded window linearly is both faster and obviously terminating.
+   */
   const readBrace = (
     index: number,
   ): { length: number; unbounded: boolean; nullable: boolean } | undefined => {
-    const match = /^\{(\d*)(,?)(\d*)\}/.exec(pattern.slice(index));
-    if (!match) return undefined;
-    const [, min, comma, max] = match;
-    const unbounded = comma === ',' && (max ?? '') === '';
-    const nullable = (min ?? '') === '' || min === '0';
-    return { length: match[0].length, unbounded, nullable };
+    // `{` + up to 10 digits + optional ',' + up to 10 digits + '}' is 24 chars.
+    const window = pattern.slice(index, index + 32);
+    if (window.length < 3 || window[0] !== '{') return undefined;
+
+    let cursor = 1;
+    const readDigits = (): number => {
+      const start = cursor;
+      while (cursor < window.length && cursor - start < 10) {
+        const code = window.charCodeAt(cursor);
+        if (code < 48 || code > 57) break;
+        cursor += 1;
+      }
+      return cursor - start;
+    };
+
+    const minDigits = readDigits();
+    let hasComma = false;
+    if (window[cursor] === ',') {
+      hasComma = true;
+      cursor += 1;
+    }
+    const maxStart = cursor;
+    const maxDigits = readDigits();
+    if (window[cursor] !== '}') return undefined;
+    // `{,m}` is not valid in JavaScript; require at least one digit somewhere.
+    if (minDigits === 0 && maxDigits === 0) return undefined;
+
+    const minText = window.slice(1, 1 + minDigits);
+    const maxText = window.slice(maxStart, maxStart + maxDigits);
+    const unbounded = hasComma && maxDigits === 0;
+    const nullable = minDigits === 0 || minText === '0';
+    void maxText;
+    return { length: cursor + 1, unbounded, nullable };
   };
 
   /** Parse one atom starting at `index`; returns the atom and the next index. */

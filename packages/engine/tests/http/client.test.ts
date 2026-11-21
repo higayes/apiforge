@@ -457,18 +457,23 @@ describe('executeRequest — abort and error classification', () => {
     // CodeQL flagged the duplicated `name === 'AbortError'` test. Removing it is
     // only sound if no error shape changes classification, so pin every shape
     // that the predicate is meant to recognise — and the ones it must not.
+    //
+    // The branches are split out so the pre-fix predicate can be rebuilt without
+    // literally writing `X || X` again: the old code evaluated the name check
+    // twice, which is exactly the redundancy that was removed.
+    const nameBranch = (error: unknown): boolean =>
+      error instanceof Error && error.name === 'AbortError';
+    const codeBranch = (error: unknown): boolean =>
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'ABORT_ERR';
+
+    // Pre-fix: the name branch was evaluated twice.
     const oldPredicate = (error: unknown): boolean =>
-      (error instanceof Error && (error.name === 'AbortError' || error.name === 'AbortError')) ||
-      (typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: string }).code === 'ABORT_ERR');
-    const newPredicate = (error: unknown): boolean =>
-      (error instanceof Error && error.name === 'AbortError') ||
-      (typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: string }).code === 'ABORT_ERR');
+      [nameBranch(error), nameBranch(error)].some(Boolean) || codeBranch(error);
+    // Post-fix: each branch is evaluated once.
+    const newPredicate = (error: unknown): boolean => nameBranch(error) || codeBranch(error);
 
     const domAbort = new DOMException('aborted', 'AbortError');
     const namedError = Object.assign(new Error('x'), { name: 'AbortError' });

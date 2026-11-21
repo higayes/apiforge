@@ -156,24 +156,30 @@ describe('runInit — concurrency', () => {
 });
 
 describe('runInit — error paths', () => {
-  it('propagates an error when the destination cannot be written', async () => {
-    const target = await dir();
-    await mkdir(join(target, 'suites'), { recursive: true });
-    // Read-only project root: creating the starter files must fail loudly.
-    await chmod(target, 0o500);
-    try {
-      await expect(runInit({ directory: target, ui })).rejects.toThrow();
-    } finally {
-      await chmod(target, 0o700);
-    }
-  });
+  it.skipIf(process.platform === 'win32')(
+    'propagates an error when the destination cannot be written (POSIX permissions)',
+    async () => {
+      const target = await dir();
+      await mkdir(join(target, 'suites'), { recursive: true });
+      // A read-only project root must fail loudly. This relies on POSIX
+      // permission bits, which Windows does not enforce for the owner — hence
+      // the platform guard. The cross-platform case is covered by the test
+      // below, which uses an unusable path instead of a permission bit.
+      await chmod(target, 0o500);
+      try {
+        await expect(runInit({ directory: target, ui })).rejects.toThrow();
+      } finally {
+        await chmod(target, 0o700);
+      }
+    },
+  );
 
-  it('propagates unexpected filesystem errors instead of swallowing them', async () => {
-    // A path whose parent is a regular file cannot be created at all.
+  it('propagates an error when a path component is a file', async () => {
+    // Portable equivalent of the permission test: on every platform a path
+    // whose parent is a regular file cannot be created.
     const target = await dir();
     const blocker = join(target, 'blocker');
     await writeFile(blocker, 'x', 'utf8');
-
     await expect(runInit({ directory: join(blocker, 'child'), ui })).rejects.toThrow();
   });
 });

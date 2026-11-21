@@ -8,6 +8,14 @@
  * mistake legible instead of a hang: the nesting guard and the input cap.
  */
 import { describe, expect, it } from 'vitest';
+
+/**
+ * Every dangerous pattern in this file is inert test data, not a live regex:
+ * it is passed as a *string* to `compileUserPattern`, whose whole job is to
+ * reject it before it is ever compiled. The suppression below is attached to
+ * the two call sites that hand these strings back to the compiler.
+ */
+
 import {
   compileUserPattern,
   hasNestedQuantifier,
