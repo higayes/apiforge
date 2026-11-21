@@ -21,17 +21,29 @@ import { describe, expect, it } from 'vitest';
  * no assertion site reads like a live regex.
  */
 const CATASTROPHIC_PATTERNS = [
+  // codeql[js/polynomial-redos]
   '(a+)+$',
+  // codeql[js/polynomial-redos]
   '(.*)*',
+  // codeql[js/polynomial-redos]
   '(?:x+)+',
+  // codeql[js/polynomial-redos]
   '((a+))+',
+  // codeql[js/polynomial-redos]
   '((?:a+)+)',
+  // codeql[js/polynomial-redos]
   '(a+){2,}',
+  // codeql[js/polynomial-redos]
   '(a*b*)+',
+  // codeql[js/polynomial-redos]
   '(.+)*',
+  // codeql[js/polynomial-redos]
   '^(\\w+\\s?)*$',
+  // codeql[js/polynomial-redos]
   '(\\w+\\s?)*',
+  // codeql[js/polynomial-redos]
   '(a+)*',
+  // codeql[js/polynomial-redos]
   '([a-z]+)*',
   '(\\d+)+',
 ] as const;

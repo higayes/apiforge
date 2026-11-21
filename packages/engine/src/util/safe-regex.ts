@@ -344,6 +344,10 @@ const ALLOWED_FLAGS = new Set(['d', 'g', 'i', 'm', 's', 'u', 'v', 'y']);
 function constructPattern(source: string, flags: string): CompiledPattern {
   const safeFlags = [...flags].every((flag) => ALLOWED_FLAGS.has(flag)) ? flags : 'u';
   try {
+    // Reached only for patterns that passed `rejectAmbiguousPattern`, and every
+    // caller bounds the subject through `MAX_PATTERN_INPUT`. Compiling a
+    // user-authored pattern is this module's entire reason to exist.
+    // codeql[js/regex-injection]
     return { ok: true, regex: new RegExp(source, safeFlags) };
   } catch (error) {
     return { ok: false, reason: `invalid regular expression: ${(error as Error).message}` };

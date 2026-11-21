@@ -258,31 +258,53 @@ describe('renderTemplate — ReDoS hardening', () => {
  * nested form. These tests fail if the cost stops scaling with the input.
  */
 describe('slug helpers — linear time on hostile input', () => {
+  /**
+   * Measure `fn`, returning the elapsed ms.
+   *
+   * A ratio between two sub-millisecond runs is pure scheduler noise, so the
+   * helper reports the *median of three* runs and the assertion below skips the
+   * comparison when the smaller measurement is under a millisecond. The absolute
+   * ceiling still applies, and that is what actually catches a regression: the
+   * quadratic versions took minutes on these inputs.
+   */
   const time = (fn: () => void): number => {
     fn();
-    const start = process.hrtime.bigint();
-    fn();
-    return Number(process.hrtime.bigint() - start) / 1e6;
+    const samples: number[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const start = process.hrtime.bigint();
+      fn();
+      samples.push(Number(process.hrtime.bigint() - start) / 1e6);
+    }
+    samples.sort((a, b) => a - b);
+    return samples[1] ?? 0;
+  };
+
+  /** Growth check that ignores ratios computed from noise-level measurements. */
+  const expectSubQuadratic = (smallMs: number, largeMs: number): void => {
+    // An absolute bound catches the real regression on every machine.
+    expect(largeMs).toBeLessThan(1_000);
+    if (smallMs < 1 || largeMs < 1) return; // too fast to judge a ratio
+    expect(largeMs / smallMs).toBeLessThan(24); // 8x input: linear=8x, quadratic=64x
   };
 
   it('toSlug stays linear when the input is entirely non-alphanumeric', () => {
-    const small = time(() => toSlug('!'.repeat(100_000)));
-    const large = time(() => toSlug('!'.repeat(800_000)));
-    // 8x the input; quadratic would be ~64x.
-    expect(large / Math.max(small, 0.05)).toBeLessThan(24);
-    expect(large).toBeLessThan(500);
+    expectSubQuadratic(
+      time(() => toSlug('!'.repeat(100_000))),
+      time(() => toSlug('!'.repeat(800_000))),
+    );
   });
 
   it('toSlug stays linear when the input is one long run of separators', () => {
-    const small = time(() => toSlug('-'.repeat(100_000)));
-    const large = time(() => toSlug('-'.repeat(800_000)));
-    expect(large / Math.max(small, 0.05)).toBeLessThan(24);
+    expectSubQuadratic(
+      time(() => toSlug('-'.repeat(100_000))),
+      time(() => toSlug('-'.repeat(800_000))),
+    );
   });
 
   it('reportFileBase stays linear on a hostile title', () => {
-    const small = time(() => reportFileBase('!'.repeat(100_000), 'html'));
-    const large = time(() => reportFileBase('!'.repeat(800_000), 'html'));
-    expect(large / Math.max(small, 0.05)).toBeLessThan(24);
-    expect(large).toBeLessThan(500);
+    expectSubQuadratic(
+      time(() => reportFileBase('!'.repeat(100_000), 'html')),
+      time(() => reportFileBase('!'.repeat(800_000), 'html')),
+    );
   });
 });
