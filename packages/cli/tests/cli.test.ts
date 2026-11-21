@@ -591,6 +591,28 @@ describe('env', () => {
     const result = await runCli(['env', 'show', 'nope'], { cwd: dir });
     expect(result.code).toBe(3);
   });
+
+  // Regression: the bare `env` command forwarded to an async `list` action with a
+  // synchronous `parse()`. Outside a project the rejection escaped `main()`'s
+  // try/catch, so users saw a raw Node stack trace and exit code 1 instead of the
+  // documented exit 3 with a rendered message.
+  it('reports a missing project without a raw stack trace', async () => {
+    const dir = await project({});
+    const result = await runCli(['env'], { cwd: dir });
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain('No APIFORGE project found');
+    expect(result.stderr).toContain('✖');
+    expect(result.stderr).not.toContain('Node.js v');
+    expect(result.stderr).not.toMatch(/^\s+at .*cli\.js:/m);
+  });
+
+  it('reports a missing project without a raw stack trace for env list', async () => {
+    const dir = await project({});
+    const result = await runCli(['env', 'list'], { cwd: dir });
+    expect(result.code).toBe(3);
+    expect(result.stderr).toContain('✖');
+    expect(result.stderr).not.toContain('Node.js v');
+  });
 });
 
 describe('validate', () => {
@@ -660,15 +682,43 @@ describe('global behaviour', () => {
 
   it('accepts --no-color on every command', async () => {
     // Regression: meta commands rejected the flag the rest of the CLI accepts.
+    //
+    // `env` is run inside a real project: it needs a project to succeed, and the
+    // original `toBeLessThan(2)` assertion silently accepted a crash (exit 1) as
+    // a pass, so this case was never actually exercised.
+    const dir = await project({
+      'apiforge.yaml': 'name: x\n',
+      'environments/local.yaml': 'baseUrl: https://a.example\n',
+    });
+    const cases: Array<[string[], string | undefined]> = [
+      [['exit-codes', '--no-color'], undefined],
+      [['version', '--no-color'], undefined],
+      [['completion', 'bash', '--no-color'], undefined],
+      [['env', '--no-color'], dir],
+      [['validate', '--no-color'], undefined],
+    ];
+    for (const [args, cwd] of cases) {
+      const result = await runCli(args, { cwd });
+      expect(result.code, `${args.join(' ')} → ${result.stderr}`).toBe(0);
+    }
+  });
+
+  it('never renders a raw stack trace for a missing project', async () => {
+    // Regression: a leaked async rejection printed an internal Node stack trace
+    // (and exited 1) instead of a rendered message. Assert across commands so any
+    // future command that throws from a detached async action is caught here.
+    const dir = await project({});
     for (const args of [
-      ['exit-codes', '--no-color'],
-      ['version', '--no-color'],
-      ['completion', 'bash', '--no-color'],
-      ['env', '--no-color'],
-      ['validate', '--no-color'],
+      ['env'],
+      ['env', 'list'],
+      ['env', 'show', 'prod'],
+      ['contract'],
+      ['security'],
     ]) {
-      const result = await runCli(args);
-      expect(result.code, `${args.join(' ')} → ${result.stderr}`).toBeLessThan(2);
+      const result = await runCli(args, { cwd: dir });
+      expect(result.stderr, args.join(' ')).not.toContain('Node.js v');
+      expect(result.stderr, args.join(' ')).not.toMatch(/^\s+at .*cli\.js:/m);
+      expect(result.code, args.join(' ')).toBe(3);
     }
   });
 

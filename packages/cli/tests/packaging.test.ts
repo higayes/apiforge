@@ -149,8 +149,13 @@ describe('packaging', () => {
 
   it('points the bin entry at the built file', async () => {
     const pkg = await packageJson();
-    expect(pkg.bin.apiforge).toBe('./dist/cli.js');
-    expect(existsSync(join(cliDir, pkg.bin.apiforge as string))).toBe(true);
+    // Written without a `./` prefix: npm normalises it to `dist/cli.js` anyway and
+    // logs a misleading `bin[apiforge] … was invalid and removed` warning when the
+    // raw value differs from the normalised one. Both forms resolve to the same
+    // file, so accept either and assert the file really exists.
+    const binPath = pkg.bin.apiforge as string | undefined;
+    expect(binPath).toMatch(/^\.?\/?dist\/cli\.js$/);
+    expect(existsSync(join(cliDir, (binPath as string).replace(/^\.\//, '')))).toBe(true);
   });
 
   it('packs only the intended files', async () => {
@@ -160,7 +165,14 @@ describe('packaging', () => {
       ['pack', '--dry-run', '--json'],
       npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
     );
-    const [entry] = JSON.parse(stdout) as Array<{ files: Array<{ path: string }>; size: number }>;
+    // `prepack`/`postpack` write their own log lines to stdout, so `npm pack --json`
+    // is not pure JSON any more. Keep only the JSON payload.
+    const jsonStart = stdout.search(/^\s*\[/m);
+    expect(jsonStart, `no JSON found in npm pack output:\n${stdout}`).toBeGreaterThanOrEqual(0);
+    const [entry] = JSON.parse(stdout.slice(jsonStart)) as Array<{
+      files: Array<{ path: string }>;
+      size: number;
+    }>;
     const paths = (entry?.files ?? []).map((file) => file.path);
     expect(paths).toContain('dist/cli.js');
     expect(paths).toContain('package.json');
@@ -175,6 +187,41 @@ describe('packaging', () => {
     // Source and tests must never ship.
     expect(paths.some((path) => path.startsWith('src/'))).toBe(false);
     expect(paths.some((path) => path.startsWith('tests/'))).toBe(false);
+  });
+
+  it('publishes a manifest with no workspace: protocol specs', async () => {
+    // Regression: `@apiforge/engine` is declared as `workspace:*` for the build,
+    // but npm does not understand that protocol and copied it verbatim into the
+    // tarball. Unpacking the published tarball and running `npm install` then
+    // failed with EUNSUPPORTEDPROTOCOL ("Unsupported URL Type workspace:").
+    // `prepack` now strips internal devDependencies; this asserts the result.
+    const dir = await mkdtemp(join(tmpdir(), 'apiforge-workspace-'));
+    try {
+      const { stdout } = await exec(
+        NPM,
+        ['pack', '--json', '--pack-destination', dir],
+        npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
+      );
+      const jsonStart = stdout.search(/^\s*\[/m);
+      const [entry] = JSON.parse(stdout.slice(jsonStart)) as Array<{ filename: string }>;
+      const tarball = join(dir, entry!.filename);
+      const { stdout: manifest } = await exec('tar', ['-xzOf', tarball, 'package/package.json']);
+      const published = JSON.parse(manifest) as {
+        name: string;
+        version: string;
+        devDependencies?: Record<string, string>;
+      };
+      expect(published.name).toBe('@apiforge-tools/apiforge-cli');
+      expect(JSON.stringify(published)).not.toContain('workspace:');
+      expect(published.devDependencies?.['@apiforge/engine']).toBeUndefined();
+
+      // The working copy must be restored afterwards, or every later pack in the
+      // same checkout would publish an already-stripped manifest.
+      const working = await packageJson();
+      expect(working.devDependencies?.['@apiforge/engine']).toBe('workspace:*');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it.runIf(process.env.APIFORGE_TEST_PACK === '1')(
