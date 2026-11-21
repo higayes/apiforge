@@ -224,6 +224,37 @@ describe('packaging', () => {
     }
   });
 
+  it('keeps the original manifest when a pack aborts after prepack', async () => {
+    // Regression, and a real data-loss bug caught before release:
+    // `prepack` strips the manifest and writes a backup, but an aborted pack
+    // (here: a destination directory that does not exist) never runs `postpack`.
+    // The next pack then saw an already-stripped manifest, overwrote the only
+    // original copy with a stripped one, and `postpack` "restored" that — silently
+    // deleting `workspace:*` from the committed package.json. The backup is now
+    // created once and never overwritten, so the pristine manifest always survives.
+    const good = await packageJson();
+    expect(good.devDependencies?.['@apiforge/engine']).toBe('workspace:*');
+
+    const missing = join(tmpdir(), `apiforge-missing-${Date.now()}`, 'nested');
+    await expect(
+      exec(NPM, ['pack', '--pack-destination', missing], npmOptions({ cwd: cliDir })),
+    ).rejects.toThrow();
+
+    const dir = await mkdtemp(join(tmpdir(), 'apiforge-recover-'));
+    try {
+      await exec(
+        NPM,
+        ['pack', '--pack-destination', dir],
+        npmOptions({ cwd: cliDir, env: { ...process.env, npm_config_loglevel: 'error' } }),
+      );
+      // Packing again must not have eaten the original.
+      const after = await packageJson();
+      expect(after.devDependencies?.['@apiforge/engine']).toBe('workspace:*');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it.runIf(process.env.APIFORGE_TEST_PACK === '1')(
     'installs from the tarball and runs',
     async () => {
