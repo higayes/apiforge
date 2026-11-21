@@ -170,9 +170,21 @@ function headerPairsToRecord(
 
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+/**
+ * True when `error` represents an aborted request.
+ *
+ * Two shapes are checked because they come from different layers:
+ *   - `name === 'AbortError'`: a `DOMException` raised by `AbortSignal`.
+ *   - `code === 'ABORT_ERR'`: the same condition surfaced by Node's `http`
+ *     layer, wrapped in a plain `Error` that carries no `name`.
+ *
+ * The previous version tested `error.name === 'AbortError'` twice — an
+ * accidental duplicate that CodeQL reported as js/redundant-operation. Both
+ * spellings are covered below; the duplicate is gone.
+ */
 function isAbort(error: unknown): boolean {
   return (
-    (error instanceof Error && (error.name === 'AbortError' || error.name === 'AbortError')) ||
+    (error instanceof Error && error.name === 'AbortError') ||
     (typeof error === 'object' &&
       error !== null &&
       'code' in error &&

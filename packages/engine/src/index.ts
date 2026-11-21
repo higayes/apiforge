@@ -213,6 +213,13 @@ export {
 export type { TemplateContext, RenderOptions } from './util/template.js';
 export { getPath, setPath, hasPath, parsePath } from './util/path.js';
 export {
+  compileUserPattern,
+  testUserPattern,
+  hasNestedQuantifier,
+  MAX_PATTERN_INPUT,
+} from './util/safe-regex.js';
+export type { CompiledPattern } from './util/safe-regex.js';
+export {
   redactUrl,
   redactHeaders,
   redactBodyText,

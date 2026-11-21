@@ -8,6 +8,7 @@
 import type { AssertionResult } from '../types.js';
 import { formatValue, summarizeValueDiff } from '../util/diff.js';
 import { getPath } from '../util/path.js';
+import { testUserPattern } from '../util/safe-regex.js';
 import { validateJsonSchema } from './json-schema.js';
 import type { CheckInput, ValueCheck } from '../config/schema.js';
 
@@ -185,19 +186,21 @@ function evaluateOperator(
           };
 
     case 'matches': {
-      let regex: RegExp;
-      try {
-        regex = new RegExp(String(expected), 'u');
-      } catch (error) {
-        return {
-          passed: false,
-          message: `invalid regular expression: ${(error as Error).message}`,
-        };
-      }
+      // The pattern is authored by the suite owner, but it is still arbitrary:
+      // compiling it through `testUserPattern` rejects the nested-quantifier
+      // shapes that hang the process and bounds how much text is scanned.
       const text = typeof value === 'string' ? value : JSON.stringify(value);
-      return regex.test(text)
-        ? { passed: true }
-        : { passed: false, message: `${formatValue(value)} does not match /${String(expected)}/` };
+      const outcome = testUserPattern(String(expected), text);
+      if (outcome.reason !== undefined) {
+        return { passed: false, message: outcome.reason };
+      }
+      if (outcome.passed) return { passed: true };
+      return {
+        passed: false,
+        message: `${formatValue(value)} does not match /${String(expected)}/${
+          outcome.truncated ? ' (input truncated before matching)' : ''
+        }`,
+      };
     }
 
     case 'min':

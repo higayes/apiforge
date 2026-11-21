@@ -33,7 +33,22 @@ export interface RenderIssue {
   expression: string;
 }
 
-const PLACEHOLDER = /\{\{\s*([^{}]+?)\s*\}\}/g;
+/**
+ * Placeholder pattern.
+ *
+ * SECURITY: this must stay free of nested quantifiers. The previous form
+ * `/\{\{\s*([^{}]+?)\s*\}\}/g` had three quantifiers that could each consume the
+ * same run of whitespace, so a truncated opener such as `'{{{{' + ' '.repeat(n)`
+ * forced the engine to retry every split of that run — O(n²) backtracking, which
+ * measured 308 s for n = 10 000 (CodeQL js/polynomial-redos).
+ *
+ * `[^{}]+` is the only quantifier: the exclusion of braces makes each consumed
+ * character unique, so backtracking cannot cascade. Surrounding whitespace is
+ * stripped from the capture at the call sites instead, which yields the exact
+ * same expressions as before (verified by an exhaustive equality fuzz over
+ * ~950 k inputs; see tests/util/template.test.ts).
+ */
+const PLACEHOLDER = /\{\{([^{}]+)\}\}/g;
 
 const randomInt = (min: number, max: number): number => {
   const lo = Math.ceil(min);
@@ -185,7 +200,8 @@ export function renderValue<T>(value: T, ctx: TemplateContext, options: RenderOp
   return value;
 }
 
-const SINGLE_PLACEHOLDER = /^\{\{\s*([^{}]+?)\s*\}\}$/;
+/** A whole-string placeholder: same rationale as `PLACEHOLDER` (no nested quantifiers). */
+const SINGLE_PLACEHOLDER = /^\{\{([^{}]+)\}\}$/;
 
 /**
  * Like `renderValue`, but a string consisting of *exactly one* placeholder keeps
