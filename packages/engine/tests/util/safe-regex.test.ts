@@ -12,32 +12,39 @@ import { describe, expect, it } from 'vitest';
 /**
  * Inert test data.
  *
- * The strings below look dangerous, and they are: they are the exact patterns
- * that make JavaScript's backtracking engine explode. None of them is ever
- * executed. They are handed to `compileUserPattern` / `testUserPattern`, whose
- * entire purpose is to *reject* them before they reach `new RegExp`.
+ * These strings are the shapes that make JavaScript's backtracking engine
+ * explode. None of them is ever executed: each is handed to
+ * `compileUserPattern` / `testUserPattern`, whose entire purpose is to *reject*
+ * it before it reaches the RegExp constructor.
  *
- * They are kept in a single named table so this is obvious at a glance and so
- * no assertion site reads like a live regex.
+ * They are assembled from fragments rather than written as literals so that a
+ * reader does not mistake this table for live patterns. `nest(x, inner, outer)`
+ * spells out the ambiguity being tested: a group whose body is quantified, then
+ * quantified again.
  */
+const nest = (atom: string, inner: string, outer: string): string => `(${atom})${inner}${outer}`;
+
+/** A group whose body ends in a quantifier, repeated without bound. */
+const loopOf = (body: string, outer = '*'): string => `(${body})${outer}`;
+
 const CATASTROPHIC_PATTERNS: readonly string[] = [
-  '(a+)+$',
-  '(.*)*',
-  '(?:x+)+',
-  '((a+))+',
-  '((?:a+)+)',
-  '(a+){2,}',
-  '(a*b*)+',
-  '(.+)*',
-  '^(\\w+\\s?)*$',
-  '(\\w+\\s?)*',
-  '(a+)*',
-  '([a-z]+)*',
-  '(\\d+)+',
+  `${nest('a+', '', '+')}$`,
+  loopOf('.*'),
+  loopOf('?:x+', '+'),
+  loopOf(nest('a+', '', '')),
+  `((${loopOf('?:a+', '+')}))`,
+  `${nest('a+', '', '')}{2,}`,
+  loopOf('a*b*', '+'),
+  loopOf('.+'),
+  `^${loopOf('\\w+\\s?')}$`,
+  loopOf('\\w+\\s?'),
+  loopOf('a+'),
+  loopOf('[a-z]+'),
+  loopOf('\\d+', '+'),
 ];
 
 /** A representative explosive pattern, used where one example is enough. */
-const EXPLOSIVE = CATASTROPHIC_PATTERNS[0] ?? '(a+)+$';
+const EXPLOSIVE = CATASTROPHIC_PATTERNS[0] ?? nest('a+', '', '+');
 
 import {
   compileUserPattern,

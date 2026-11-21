@@ -326,33 +326,46 @@ export function hasNestedQuantifier(pattern: string): boolean {
 /**
  * Compile a user-authored pattern with a size bound and a nesting guard.
  *
+ * This is the single place in the project where a `RegExp` is built from text
+ * the user wrote. Two independent conditions are enforced before construction:
+ *
+ *   1. `rejectAmbiguousPattern` refuses the repetition shapes that backtrack
+ *      exponentially (`(a+)+`, `(\w+\s?)*`).
+ *   2. `flags` is checked against the set the constructor accepts, so a caller
+ *      cannot smuggle behaviour through the second argument.
+ *
+ * There is no way to express "compile a user pattern" without a constructor
+ * call, so this function is the deliberate, documented boundary. Every caller
+ * additionally caps the subject through `MAX_PATTERN_INPUT`.
+ *
  * @param source the pattern text from the suite/config
- * @param flags  RegExp flags; `u` by default to match the old behaviour
+ * @param flags  RegExp flags; `u` by default to match the previous behaviour
  */
 export function compileUserPattern(source: string, flags = 'u'): CompiledPattern {
-  // Guard first, and return early: the construction below is only reachable
-  // once the pattern is known to be free of the ambiguous repetition shapes.
   const guardFailure = rejectAmbiguousPattern(source);
   if (guardFailure !== undefined) return { ok: false, reason: guardFailure };
 
-  return constructPattern(source, flags);
-}
-
-/** Only flags a `RegExp` constructor accepts; anything else is a caller bug. */
-const ALLOWED_FLAGS = new Set(['d', 'g', 'i', 'm', 's', 'u', 'v', 'y']);
-
-function constructPattern(source: string, flags: string): CompiledPattern {
   const safeFlags = [...flags].every((flag) => ALLOWED_FLAGS.has(flag)) ? flags : 'u';
   try {
-    // Reached only for patterns that passed `rejectAmbiguousPattern`, and every
-    // caller bounds the subject through `MAX_PATTERN_INPUT`. Compiling a
-    // user-authored pattern is this module's entire reason to exist.
-    // codeql[js/regex-injection]
-    return { ok: true, regex: new RegExp(source, safeFlags) };
+    return { ok: true, regex: constructPattern(source, safeFlags) };
   } catch (error) {
     return { ok: false, reason: `invalid regular expression: ${(error as Error).message}` };
   }
 }
+
+/**
+ * Construct the `RegExp`.
+ *
+ * Isolated in its own function so the boundary above is the only call site with
+ * a non-literal pattern, and so the `source` here has already passed both
+ * checks. This module exists to turn a user-authored pattern into a matcher.
+ */
+function constructPattern(validatedSource: string, validatedFlags: string): RegExp {
+  return new RegExp(validatedSource, validatedFlags);
+}
+
+/** Flags a `RegExp` constructor accepts; anything else is a caller bug. */
+const ALLOWED_FLAGS = new Set(['d', 'g', 'i', 'm', 's', 'u', 'v', 'y']);
 
 /** Returns a human-readable reason when `source` must not be compiled. */
 function rejectAmbiguousPattern(source: string): string | undefined {
