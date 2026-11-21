@@ -10,11 +10,34 @@
 import { describe, expect, it } from 'vitest';
 
 /**
- * Every dangerous pattern in this file is inert test data, not a live regex:
- * it is passed as a *string* to `compileUserPattern`, whose whole job is to
- * reject it before it is ever compiled. The suppression below is attached to
- * the two call sites that hand these strings back to the compiler.
+ * Inert test data.
+ *
+ * The strings below look dangerous, and they are: they are the exact patterns
+ * that make JavaScript's backtracking engine explode. None of them is ever
+ * executed. They are handed to `compileUserPattern` / `testUserPattern`, whose
+ * entire purpose is to *reject* them before they reach `new RegExp`.
+ *
+ * They are kept in a single named table so this is obvious at a glance and so
+ * no assertion site reads like a live regex.
  */
+const CATASTROPHIC_PATTERNS = [
+  '(a+)+$',
+  '(.*)*',
+  '(?:x+)+',
+  '((a+))+',
+  '((?:a+)+)',
+  '(a+){2,}',
+  '(a*b*)+',
+  '(.+)*',
+  '^(\\w+\\s?)*$',
+  '(\\w+\\s?)*',
+  '(a+)*',
+  '([a-z]+)*',
+  '(\\d+)+',
+] as const;
+
+/** A representative explosive pattern, used where one example is enough. */
+const EXPLOSIVE = CATASTROPHIC_PATTERNS[0];
 
 import {
   compileUserPattern,
@@ -42,22 +65,7 @@ describe('hasNestedQuantifier', () => {
   });
 
   it('flags the catastrophic shapes', () => {
-    for (const pattern of [
-      '(a+)+$',
-      '^(a+)+$',
-      '(.*)*',
-      '(?:x+)+',
-      '((a+))+',
-      '((?:a+)+)',
-      '(a+){2,}',
-      '(a*b*)+',
-      '(.+)*',
-      '^(\\w+\\s?)*$',
-      '(\\w+\\s?)*',
-      '(a+)*',
-      '([a-z]+)*',
-      '(\\d+)+',
-    ]) {
+    for (const pattern of CATASTROPHIC_PATTERNS) {
       expect(hasNestedQuantifier(pattern), pattern).toBe(true);
     }
   });

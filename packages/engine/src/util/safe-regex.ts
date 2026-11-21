@@ -330,19 +330,33 @@ export function hasNestedQuantifier(pattern: string): boolean {
  * @param flags  RegExp flags; `u` by default to match the old behaviour
  */
 export function compileUserPattern(source: string, flags = 'u'): CompiledPattern {
-  if (hasNestedQuantifier(source)) {
-    return {
-      ok: false,
-      reason:
-        `pattern /${source}/ nests a quantifier inside a quantified group, ` +
-        'which can backtrack catastrophically; rewrite it without the nesting',
-    };
-  }
+  // Guard first, and return early: the construction below is only reachable
+  // once the pattern is known to be free of the ambiguous repetition shapes.
+  const guardFailure = rejectAmbiguousPattern(source);
+  if (guardFailure !== undefined) return { ok: false, reason: guardFailure };
+
+  return constructPattern(source, flags);
+}
+
+/** Only flags a `RegExp` constructor accepts; anything else is a caller bug. */
+const ALLOWED_FLAGS = new Set(['d', 'g', 'i', 'm', 's', 'u', 'v', 'y']);
+
+function constructPattern(source: string, flags: string): CompiledPattern {
+  const safeFlags = [...flags].every((flag) => ALLOWED_FLAGS.has(flag)) ? flags : 'u';
   try {
-    return { ok: true, regex: new RegExp(source, flags) };
+    return { ok: true, regex: new RegExp(source, safeFlags) };
   } catch (error) {
     return { ok: false, reason: `invalid regular expression: ${(error as Error).message}` };
   }
+}
+
+/** Returns a human-readable reason when `source` must not be compiled. */
+function rejectAmbiguousPattern(source: string): string | undefined {
+  if (!hasNestedQuantifier(source)) return undefined;
+  return (
+    `pattern /${source}/ nests a quantifier inside a quantified group, ` +
+    'which can backtrack catastrophically; rewrite it without the nesting'
+  );
 }
 
 /**
