@@ -86,15 +86,15 @@ describe('escapeFishSingleQuoted', () => {
 
   it.skipIf(!FISH)('shows the previous escaping produced an unparseable script', () => {
     withTemp((dir) => {
-      // The old implementation only replaced apostrophes.
+      // The old escaper turned a description of `path C:\` into this script:
+      // the closing quote is consumed by the trailing backslash, so fish reports
+      // "Unexpected end of string, quotes are not balanced".
       //
-      // Reproducing that escaper is the point of this test: the assertion below
-      // proves fish rejects its output. The missing backslash handling is the
-      // subject under test, and this helper only ever builds a deliberately
-      // broken fixture, never a script that is executed as a real completion.
-      // codeql[js/incomplete-sanitization]
-      const oldEscape = (value: string): string => value.replace(/'/g, "\\'");
-      const broken = `echo '${oldEscape('path C:\\')}'`;
+      // The fixture is written out literally rather than by re-running the old
+      // escaper: reproducing the bug in code would mean shipping an incomplete
+      // sanitizer in the test suite, and the point here is the malformed output,
+      // not the function that produced it.
+      const broken = "echo 'path C:\\'";
 
       expect(() => roundTrip('fish', broken, dir)).toThrow();
     });

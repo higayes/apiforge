@@ -20,36 +20,24 @@ import { describe, expect, it } from 'vitest';
  * They are kept in a single named table so this is obvious at a glance and so
  * no assertion site reads like a live regex.
  */
-const CATASTROPHIC_PATTERNS = [
-  // codeql[js/polynomial-redos]
+const CATASTROPHIC_PATTERNS: readonly string[] = [
   '(a+)+$',
-  // codeql[js/polynomial-redos]
   '(.*)*',
-  // codeql[js/polynomial-redos]
   '(?:x+)+',
-  // codeql[js/polynomial-redos]
   '((a+))+',
-  // codeql[js/polynomial-redos]
   '((?:a+)+)',
-  // codeql[js/polynomial-redos]
   '(a+){2,}',
-  // codeql[js/polynomial-redos]
   '(a*b*)+',
-  // codeql[js/polynomial-redos]
   '(.+)*',
-  // codeql[js/polynomial-redos]
   '^(\\w+\\s?)*$',
-  // codeql[js/polynomial-redos]
   '(\\w+\\s?)*',
-  // codeql[js/polynomial-redos]
   '(a+)*',
-  // codeql[js/polynomial-redos]
   '([a-z]+)*',
   '(\\d+)+',
-] as const;
+];
 
 /** A representative explosive pattern, used where one example is enough. */
-const EXPLOSIVE = CATASTROPHIC_PATTERNS[0];
+const EXPLOSIVE = CATASTROPHIC_PATTERNS[0] ?? '(a+)+$';
 
 import {
   compileUserPattern,
