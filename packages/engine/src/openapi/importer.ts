@@ -14,6 +14,7 @@
 import { ConfigError } from '../errors.js';
 import type { SuiteDefinition, TestDefinition } from '../config/schema.js';
 import { dereferenceLocalRefs } from '../assertions/json-schema.js';
+import { compileUserPattern } from '../util/safe-regex.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -212,7 +213,15 @@ export function importOpenApiDocument(
 
   const paths = asObject(dereferenced.paths);
   const tests: TestDefinition[] = [];
-  const pathFilter = options.pathPattern ? new RegExp(options.pathPattern) : undefined;
+  // The --path value is user-authored. Compile it through the nesting-aware
+  // helper so an accidentally catastrophic pattern is rejected with a clear
+  // ConfigError instead of hanging the import.
+  let pathFilter: RegExp | undefined;
+  if (options.pathPattern) {
+    const compiled = compileUserPattern(options.pathPattern);
+    if (!compiled.ok) throw new ConfigError(compiled.reason, ['Adjust the --path pattern.']);
+    pathFilter = compiled.regex;
+  }
 
   for (const [path, pathItemRaw] of Object.entries(paths)) {
     if (pathFilter && !pathFilter.test(path)) continue;

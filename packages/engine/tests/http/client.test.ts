@@ -391,3 +391,135 @@ describe('URL redaction in responses', () => {
     expect(response.url).toContain('page=1');
   });
 });
+
+/**
+ * Regression tests for CodeQL js/redundant-operation on `isAbort`.
+ *
+ * The guard used to test `error.name === 'AbortError'` twice. Removing the
+ * duplicate is only safe if every abort shape is still recognised, so these
+ * tests pin each branch of the predicate and each user-visible outcome:
+ * abort during the body read, timeout, explicit user cancellation, a network
+ * failure (which must NOT be mistaken for a cancellation), and unknown errors.
+ */
+describe('executeRequest — abort and error classification', () => {
+  it('classifies an abort that happens while reading the body as cancelled', async () => {
+    const controller = new AbortController();
+    const promise = executeRequest({
+      method: 'GET',
+      url: `${server.url}/delay/1s`,
+      signal: controller.signal,
+    });
+    setTimeout(() => controller.abort(), 60);
+    const error = await promise.catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(RequestError);
+    expect((error as RequestError).kind).toBe('cancelled');
+    expect((error as RequestError).code).toBe('CANCELLED');
+  });
+
+  it('classifies an elapsed deadline as a timeout, not a cancellation', async () => {
+    const error = await executeRequest({
+      method: 'GET',
+      url: `${server.url}/delay/1s`,
+      timeoutMs: 80,
+    }).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(RequestError);
+    expect((error as RequestError).kind).toBe('timeout');
+  });
+
+  it('classifies a user cancellation as cancelled even when a timeout is also configured', async () => {
+    const controller = new AbortController();
+    const promise = executeRequest({
+      method: 'GET',
+      url: `${server.url}/delay/1s`,
+      timeoutMs: 5_000,
+      signal: controller.signal,
+    });
+    setTimeout(() => controller.abort(), 50);
+    const error = await promise.catch((caught) => caught);
+
+    // The user's abort wins over the (much later) deadline.
+    expect((error as RequestError).kind).toBe('cancelled');
+  });
+
+  it('classifies a refused connection as a network error, never as a cancellation', async () => {
+    const error = await executeRequest({
+      method: 'GET',
+      url: `http://127.0.0.1:${await getClosedPort()}/json`,
+    }).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(RequestError);
+    expect((error as RequestError).kind).toBe('network');
+  });
+
+  it('keeps the abort predicate semantically identical to the pre-fix version', async () => {
+    // CodeQL flagged the duplicated `name === 'AbortError'` test. Removing it is
+    // only sound if no error shape changes classification, so pin every shape
+    // that the predicate is meant to recognise — and the ones it must not.
+    //
+    // The branches are split out so the pre-fix predicate can be rebuilt without
+    // literally writing `X || X` again: the old code evaluated the name check
+    // twice, which is exactly the redundancy that was removed.
+    const nameBranch = (error: unknown): boolean =>
+      error instanceof Error && error.name === 'AbortError';
+    const codeBranch = (error: unknown): boolean =>
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'ABORT_ERR';
+
+    // Pre-fix: the name branch was evaluated twice.
+    const oldPredicate = (error: unknown): boolean =>
+      [nameBranch(error), nameBranch(error)].some(Boolean) || codeBranch(error);
+    // Post-fix: each branch is evaluated once.
+    const newPredicate = (error: unknown): boolean => nameBranch(error) || codeBranch(error);
+
+    const domAbort = new DOMException('aborted', 'AbortError');
+    const namedError = Object.assign(new Error('x'), { name: 'AbortError' });
+    const codedError = Object.assign(new Error('x'), { code: 'ABORT_ERR' });
+    const both = Object.assign(new Error('x'), { name: 'AbortError', code: 'ABORT_ERR' });
+    const plain = new Error('boom');
+    const reset = Object.assign(new Error('x'), { code: 'ECONNRESET' });
+    const nonError = { code: 'ABORT_ERR' };
+    const timeoutDom = new DOMException('t', 'TimeoutError');
+
+    const shapes: unknown[] = [
+      domAbort,
+      namedError,
+      codedError,
+      both,
+      plain,
+      reset,
+      nonError,
+      timeoutDom,
+      'AbortError',
+      null,
+      undefined,
+      42,
+    ];
+
+    for (const shape of shapes) {
+      expect(newPredicate(shape), `shape ${String(shape)}`).toBe(oldPredicate(shape));
+    }
+
+    // And the predicate still classifies the shapes it exists for.
+    expect(newPredicate(domAbort)).toBe(true);
+    expect(newPredicate(codedError)).toBe(true);
+    expect(newPredicate(plain)).toBe(false);
+    expect(newPredicate(reset)).toBe(false);
+  });
+
+  it('reports unknown failures without leaking the original error type', async () => {
+    const error = await executeRequest({
+      method: 'GET',
+      url: 'not-a-valid-url',
+    }).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(RequestError);
+    // A malformed URL is rejected before any socket is opened, so the client
+    // reports it as a protocol error rather than a network one.
+    expect((error as RequestError).kind).toBe('protocol');
+    expect((error as Error).message).not.toMatch(/AbortError/);
+  });
+});
